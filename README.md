@@ -1,3 +1,7 @@
+# How to run this
+
+Execute python3 -m http.server and open http://127.0.0.1:8000/.
+
 # Julia CI Timing Dashboard
 
 A dashboard tracking build and test times for the Julia programming language's CI on [Buildkite](https://buildkite.com/julialang/julia-master).
