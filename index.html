@@ -230,7 +230,7 @@
             width: 320px;
             background: var(--color-canvas-subtle);
             border-right: 1px solid var(--color-border-default);
-            display: flex;
+            display: none;
             flex-direction: column;
             flex-shrink: 0;
         }
@@ -362,6 +362,10 @@
             border: 1px solid var(--color-border-default);
             border-radius: 6px;
             color: var(--color-fg-default);
+        }
+        .toolbar-job-filter {
+            width: 220px;
+            flex-shrink: 0;
         }
         .job-filter-wrapper {
             position: relative;
@@ -1138,6 +1142,13 @@
             <option value="30">30-day avg</option>
             <option value="90">90-day avg</option>
         </select>
+        <select
+            class="time-select"
+            id="julia-version"
+            onchange="setJuliaVersion(this.value)"
+            aria-label="Julia version">
+            <option value="all">All Julia versions</option>
+        </select>
         <div class="checkbox-dropdown" id="state-filter-dropdown">
             <button class="checkbox-dropdown-btn" onclick="toggleStateDropdown(event)" aria-label="State filter">
                 <span id="state-filter-label">States (3/4)</span>
@@ -1156,6 +1167,24 @@
             <div class="checkbox-dropdown-menu" id="host-filter-menu"></div>
         </div>
         <button class="btn btn-icon" onclick="toggleShortcutsHelp()" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
+        <div class="job-filter-wrapper toolbar-job-filter">
+            <input
+                id="job-filter"
+                class="job-filter-input"
+                type="search"
+                placeholder="Search jobs..."
+                aria-label="Search jobs"
+                oninput="setJobFilter(this.value)"
+            >
+            <button
+                id="job-filter-clear"
+                class="job-filter-clear"
+                onclick="clearJobFilter()"
+                aria-label="Clear search"
+                title="Clear search">
+                ×
+            </button>
+        </div>
         <span class="updated" id="last-updated" aria-live="polite"></span>
         <a href="https://github.com/oscar-system/oscar-timing" target="_blank" rel="noopener noreferrer" class="btn btn-link" aria-label="View source on GitHub">GitHub</a>
     </div>
@@ -1212,39 +1241,28 @@
     <main class="main">
         <aside class="sidebar" aria-label="Job selection">
             <div class="job-matrix-wrapper">
-                <div class="section-header" id="section-matrix" onclick="toggleSection(this)"><span class="section-header-text">Platform Matrix</span></div>
+                <div class="section-header" id="section-matrix" onclick="toggleSection(this)">
+                    <span class="section-header-text">Platform Matrix</span>
+                </div>
                 <div class="collapsible-content">
-                    <div class="job-matrix" id="job-matrix" role="grid" aria-label="Platform and test type matrix"><div class="loading">Loading...</div></div>
+                    <div class="job-matrix" id="job-matrix" role="grid" aria-label="Platform and test type matrix">
+                        <div class="loading">Loading...</div>
+                    </div>
                 </div>
             </div>
+
             <div class="job-list-section">
                 <div class="section-header" id="section-jobs" onclick="toggleSection(this)">
-                    <span class="section-header-text">Jobs (<span id="job-count-mobile">0 / 0</span>)</span>
+                    <span class="section-header-text">
+                        Jobs (<span id="job-count-mobile">0 / 0</span>)
+                    </span>
                 </div>
+
                 <div class="collapsible-content">
                     <div class="job-list-header">
                         <span>Jobs (<span id="job-count">0 / 0</span>)</span>
                     </div>
-                    <div class="job-list-controls">
-                        <div class="job-filter-wrapper">
-                            <input
-                                id="job-filter"
-                                class="job-filter-input"
-                                type="search"
-                                placeholder="Search jobs..."
-                                aria-label="Search jobs"
-                                oninput="setJobFilter(this.value)"
-                            >
-                            <button
-                                id="job-filter-clear"
-                                class="job-filter-clear"
-                                onclick="clearJobFilter()"
-                                aria-label="Clear search"
-                                title="Clear search">
-                                ×
-                            </button>
-                        </div>
-                    </div>
+
                     <div class="job-list-summary" id="job-list" aria-live="polite"></div>
                 </div>
             </div>
@@ -1319,6 +1337,7 @@
         let data = null;
         let selectedJobs = new Set();
         let jobFilterText = '';
+        let selectedJuliaVersion = 'all';
         let jobFilterTimer = null;
         let timeRangeDays = DEFAULT_TIME_RANGE;
         let lineType = DEFAULT_LINE_TYPE;
@@ -1366,10 +1385,19 @@
             return null;
         }
 
+        function setJuliaVersion(version) {
+            selectedJuliaVersion = version;
+            updateJobCount();
+            updateChart();
+            updateStatsTable();
+            updateURL();
+        }        
+
         function refreshAllUI() {
             updateMatrixHighlights();
             updateJobCount();
             updateHostFilterUI();
+            updateJuliaVersionFilterUI();
             updateChart();
             updateStatsTable();
         }
@@ -2753,6 +2781,37 @@
             updateHostFilterLabel();
         }
 
+        function updateJuliaVersionFilterUI() {
+            const select = document.getElementById('julia-version');
+            if (!select || !data?.jobs) return;
+
+            const versions = new Set();
+
+            for (const jobName of Object.keys(data.jobs)) {
+                const lower = jobName.toLowerCase();
+                const versionMatch = lower.match(/\b1\.\d+(?:-nightly)?\b|\bnightly\b/);
+
+                if (versionMatch) {
+                    versions.add(versionMatch[0]);
+                }
+            }
+
+            const sortedVersions = [...versions].sort((a, b) =>
+                a.localeCompare(b, undefined, { numeric: true })
+            );
+
+            select.innerHTML = '<option value="all">All Julia versions</option>';
+
+            for (const version of sortedVersions) {
+                const option = document.createElement('option');
+                option.value = version;
+                option.textContent = `Julia ${version}`;
+                select.appendChild(option);
+            }
+
+            select.value = selectedJuliaVersion;
+        }        
+
         function getAllHostsFromSelectedJobs() {
             const hosts = new Set();
             const cutoff = getTimeRangeCutoff();
@@ -2798,7 +2857,9 @@
 
         function classifyJob(name) {
             const lower = name.toLowerCase();
-            const vstring = lower.split(" ").find(Element => Element.includes("1."))
+            //const vstring = lower.split(" ").find(Element => Element.includes("1."))
+            const versionMatch = lower.match(/\b1\.\d+(?:-nightly)?\b|\bnightly\b/);
+            const version = versionMatch ? versionMatch[0] : null;
             // Pipeline jobs first (launch/unlock)
             if (lower.includes('launch')) return { group: 'pipeline', type: 'pipeline' };
             if (lower.includes('unlock')) return { group: 'pipeline', type: 'pipeline' };
@@ -2812,7 +2873,6 @@
 
             // Platform-based grouping
             if (lower.includes(':linux:') || lower.includes('linux')) {
-              return { group: 'linux', version: vstring }
                 if (lower.includes('coverage')) return { group: 'linux', type: 'coverage' };
                 if (lower.includes('build')) return { group: 'linux', type: 'build' };
                 if (lower.includes('test')) return { group: 'linux', type: 'test' };
@@ -4989,12 +5049,24 @@
 
         function getVisibleJobNames() {
             if (!data?.jobs) return [];
-            const filter = jobFilterText.trim().toLowerCase();
-            return Object.keys(data.jobs).filter(name =>
-                filter === '' || convertEmojiText(name).toLowerCase().includes(filter)
-            );
-        }
 
+            const filter = jobFilterText.trim().toLowerCase();
+
+            return Object.keys(data.jobs).filter(name => {
+                const matchesSearch =
+                    filter === '' || convertEmojiText(name).toLowerCase().includes(filter);
+
+                if (!matchesSearch) return false;
+
+                if (selectedJuliaVersion === 'all') return true;
+
+                const lower = name.toLowerCase();
+                const versionMatch = lower.match(/\b1\.\d+(?:-nightly)?\b|\bnightly\b/);
+                const version = versionMatch ? versionMatch[0] : null;
+
+                return version === selectedJuliaVersion;
+            });
+        }
 
         function getPlottedJobNames() {
             return getVisibleJobNames().filter(name => selectedJobs.has(name));
@@ -5117,6 +5189,7 @@
 
         function renderMatrixTable() {
             const matrixContainer = document.getElementById('job-matrix');
+            if (!matrixContainer) return;
             let html = '<table class="matrix-table">';
 
             // Header row
@@ -5692,6 +5765,7 @@
         // Render empty matrix immediately so users see structure
         function renderMatrixSkeleton() {
             const matrixContainer = document.getElementById('job-matrix');
+            if (!matrixContainer) return;
             let html = '<table class="matrix-table">';
 
             // Header row
