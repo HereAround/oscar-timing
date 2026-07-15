@@ -5127,32 +5127,6 @@
         let jobMatrix = {};
         let specialJobGroups = {};
 
-        function buildJobMatrix() {
-            jobMatrix = {};
-            specialJobGroups = {};
-
-            for (const platform of platformOrder) {
-                jobMatrix[platform] = {};
-                for (const version of versionOrder) {
-                    jobMatrix[platform][version] = [];
-                }
-            }
-            for (const group of specialGroups) {
-                specialJobGroups[group] = [];
-            }
-
-            for (const [name, job] of Object.entries(data.jobs)) {
-                const { group, version } = classifyJob(name);
-                if (platformOrder.includes(group) && versionOrder.includes(version)) {
-                    jobMatrix[group][version].push({ name, job });
-                } else if (specialGroups.includes(group)) {
-                    specialJobGroups[group].push({ name, job });
-                } else {
-                    specialJobGroups['other'].push({ name, job });
-                }
-            }
-        }
-
         function renderJobList() {
             const listContainer = document.getElementById('job-list');
 
@@ -5164,7 +5138,6 @@
         }
 
         function populateJobSelector() {
-            buildJobMatrix();
             buildJobIndex();
 
             // Assign colors
@@ -5403,7 +5376,6 @@
                     document.getElementById('chart-loading').style.display = 'none';
                 } else {
                     // Update with complete data - rebuild matrix with all jobs
-                    buildJobMatrix();
                     buildJobIndex();
 
                     // Reassign colors for any new jobs from complete data
