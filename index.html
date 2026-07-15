@@ -1394,7 +1394,6 @@
         }        
 
         function refreshAllUI() {
-            updateMatrixHighlights();
             updateJobCount();
             updateHostFilterUI();
             updateJuliaVersionFilterUI();
@@ -1421,7 +1420,6 @@
             clearStatsRowHighlight();
             hideRegressionLine();
             currentTrendCell = null;
-            updateMatrixHighlights();
             updateJobCount();
             updateChart();
             updateStatsTable();
@@ -1440,7 +1438,6 @@
             syncStatsSelectAllCheckbox();
             updateURL();
             requestAnimationFrame(() => {
-                updateMatrixHighlights();
                 updateChart();
             });
         }
@@ -2580,8 +2577,6 @@
                     selectedJobs.add(jobName);
                 }
             }
-            // Sync the job list UI to reflect the selection
-            updateMatrixHighlights();
         }
 
         // Clear comparison mode
@@ -5182,36 +5177,6 @@
             // Calculate pass rates and breakages for all jobs
             calculateAllPassRates();
             calculateAllBreakages();
-        }
-
-        function updateMatrixHighlights() {
-            // Update platform/type cells
-            for (const platform of platformOrder) {
-                for (const version of versionOrder) {
-                    const cell = document.querySelector(`.matrix-cell[data-platform="${platform}"][data-version="${version}"]`);
-                    if (!cell) continue;
-                    const jobs = jobMatrix[platform][version];
-                    const selectedCount = jobs.filter(j => selectedJobs.has(j.name)).length;
-                    cell.classList.remove('has-selection', 'partial-selection');
-                    if (selectedCount === jobs.length && jobs.length > 0) {
-                        cell.classList.add('has-selection');
-                    } else if (selectedCount > 0) {
-                        cell.classList.add('partial-selection');
-                    }
-                }
-            }
-
-            // Update special group buttons
-            for (const group of specialGroups) {
-                const btn = document.querySelector(`button[data-special="${group}"]`);
-                if (!btn) continue;
-                const jobs = specialJobGroups[group];
-                const selectedCount = jobs.filter(j => selectedJobs.has(j.name)).length;
-                btn.classList.remove('primary');
-                if (selectedCount === jobs.length && jobs.length > 0) {
-                    btn.classList.add('primary');
-                }
-            }
         }
 
         function updateJobCount() {
