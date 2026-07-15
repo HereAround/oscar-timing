@@ -5182,217 +5182,6 @@
             // Calculate pass rates and breakages for all jobs
             calculateAllPassRates();
             calculateAllBreakages();
-
-            // Build matrix table
-            renderMatrixTable();
-        }
-
-        function renderMatrixTable() {
-            const matrixContainer = document.getElementById('job-matrix');
-            if (!matrixContainer) return;
-            let html = '<table class="matrix-table">';
-
-            // Header row
-            html += '<tr><th class="matrix-corner clickable" onclick="selectAllMatrix()" title="Select all matrix jobs">All</th>';
-            for (const version of versionOrder) {
-                html += `<th class="clickable" onclick="selectByType('${version}')">${versionLabels[version]}</th>`;
-            }
-            html += '</tr>';
-
-            // Platform rows
-            for (const platform of platformOrder) {
-                html += `<tr><th class="row-header clickable" onclick="selectByPlatform('${platform}')">${platformLabels[platform]}</th>`;
-                for (const version of versionOrder) {
-                    const jobs = jobMatrix[platform][version];
-                    const count = jobs.length;
-                    // Check if any job in this cell has recent failures/timeouts/breakages
-                    let failureTooltips = [];
-                    let timeoutTooltips = [];
-                    let breakageTooltips = [];
-                    let hasFailure = false;
-                    let hasTimeout = false;
-                    let hasBreakage = false;
-
-                    for (const { name } of jobs) {
-                        const job = data.jobs[name];
-                        if (job) {
-                            const issueInfo = hasRecentFailure(job);
-                            if (issueInfo.hasFailure) {
-                                const breakageInfo = jobBreakages[name];
-                                if (breakageInfo) {
-                                    failureTooltips.push(`${name}: ${issueInfo.failedCount}/${issueInfo.totalCount} ⚡ broke at ${breakageInfo.commit.substring(0, 8)}`);
-                                } else {
-                                    failureTooltips.push(`${name}: ${issueInfo.failedCount}/${issueInfo.totalCount}`);
-                                }
-                                hasFailure = true;
-                            }
-                            if (issueInfo.hasTimeout) {
-                                timeoutTooltips.push(`${name}: ${issueInfo.timedOutCount}/${issueInfo.totalCount}`);
-                                hasTimeout = true;
-                            }
-                            if (issueInfo.hasBreakage) {
-                                breakageTooltips.push(name);
-                                hasBreakage = true;
-                            }
-                        }
-                    }
-
-                    html += `<td class="matrix-cell" data-platform="${platform}" data-version="${version}" onclick="toggleMatrixCell('${platform}', '${version}')">`;
-                    if (count > 0) {
-                        html += `<span class="job-count">${count}</span>`;
-                        if (hasBreakage) {
-                            const tooltip = `Breakage detected:\n${breakageTooltips.join('\n')}`;
-                            html += `<span class="failure-indicator breakage-indicator" title="${escapeHtml(tooltip)}">⚡</span>`;
-                        }
-                        if (hasFailure) {
-                            const tooltip = `Currently failing:\n${failureTooltips.join('\n')}`;
-                            html += `<span class="failure-indicator" title="${escapeHtml(tooltip)}">⚠️</span>`;
-                        }
-                        if (hasTimeout) {
-                            const tooltip = `Currently timing out:\n${timeoutTooltips.join('\n')}`;
-                            html += `<span class="failure-indicator" title="${escapeHtml(tooltip)}">⏳</span>`;
-                        }
-                    } else {
-                        html += '-';
-                    }
-                    html += '</td>';
-                }
-                html += '</tr>';
-            }
-
-            // Special groups row
-            html += '<tr><th class="row-header clickable special-header" colspan="4" onclick="selectAllSpecial()" title="Toggle all special jobs">Special</th></tr>';
-            html += '<tr><td colspan="4" class="special-buttons-cell">';
-            html += '<div class="special-buttons">';
-            for (const group of specialGroups) {
-                const jobs = specialJobGroups[group];
-                if (jobs.length > 0) {
-                    let failureTooltips = [];
-                    let timeoutTooltips = [];
-                    let breakageTooltips = [];
-                    let hasFailure = false;
-                    let hasTimeout = false;
-                    let hasBreakage = false;
-
-                    for (const { name } of jobs) {
-                        const job = data.jobs[name];
-                        if (job) {
-                            const issueInfo = hasRecentFailure(job);
-                            if (issueInfo.hasFailure) {
-                                const breakageInfo = jobBreakages[name];
-                                if (breakageInfo) {
-                                    failureTooltips.push(`${name}: ${issueInfo.failedCount}/${issueInfo.totalCount} ⚡ broke at ${breakageInfo.commit.substring(0, 8)}`);
-                                } else {
-                                    failureTooltips.push(`${name}: ${issueInfo.failedCount}/${issueInfo.totalCount}`);
-                                }
-                                hasFailure = true;
-                            }
-                            if (issueInfo.hasTimeout) {
-                                timeoutTooltips.push(`${name}: ${issueInfo.timedOutCount}/${issueInfo.totalCount}`);
-                                hasTimeout = true;
-                            }
-                            if (issueInfo.hasBreakage) {
-                                breakageTooltips.push(name);
-                                hasBreakage = true;
-                            }
-                        }
-                    }
-
-                    let warnIcons = '';
-                    if (hasBreakage) warnIcons += ' ⚡';
-                    if (hasFailure) warnIcons += ' ⚠️';
-                    if (hasTimeout) warnIcons += ' ⏳';
-
-                    const jobList = jobs.map(({ name }) => convertEmojiText(name)).join('\n');
-                    let tooltip = jobList;
-                    if (hasBreakage) {
-                        tooltip += '\n\nBreakage detected:\n' + breakageTooltips.join('\n');
-                    }
-                    if (hasFailure) {
-                        tooltip += '\n\nCurrently failing:\n' + failureTooltips.join('\n');
-                    }
-                    if (hasTimeout) {
-                        tooltip += '\n\nCurrently timing out:\n' + timeoutTooltips.join('\n');
-                    }
-                    html += `<button class="btn btn-special" data-special="${group}" onclick="toggleSpecialGroup('${group}')" title="${escapeHtml(tooltip)}">${specialLabels[group]} (${jobs.length})${warnIcons}</button>`;
-                }
-            }
-            html += '</div></td></tr>';
-
-            html += '</table>';
-            matrixContainer.innerHTML = html;
-
-            // Build job list
-            const listContainer = document.getElementById('job-list');
-            listContainer.innerHTML = '';
-
-            // Apply URL params (selection and time range) or localStorage or default
-            const hasURLSelection = applyURLParams();
-
-            // Check if we're in comparison mode (takes priority over localStorage)
-            const hasComparisonMode = new URLSearchParams(window.location.search).has('c');
-
-            // Always restore stats panel height from localStorage (independent of URL params)
-            const storedConfig = loadFromLocalStorage();
-            if (storedConfig && storedConfig.statsHeight && storedConfig.statsHeight >= 50) {
-                document.getElementById('stats-wrapper').style.height = storedConfig.statsHeight + 'px';
-            }
-
-            if (!hasURLSelection && !hasComparisonMode) {
-                // Try localStorage for other settings
-                if (storedConfig) {
-                    // Apply stored time range
-                    if (storedConfig.timeRange !== undefined && [0, 7, 14, 30, 60, 90, 120, 240, 365].includes(storedConfig.timeRange)) {
-                        timeRangeDays = storedConfig.timeRange;
-                        document.getElementById('time-range').value = storedConfig.timeRange;
-                    }
-                    // Apply stored line type
-                    if (storedConfig.lineType && ['raw', '7', '30', '90'].includes(storedConfig.lineType)) {
-                        lineType = storedConfig.lineType;
-                        document.getElementById('line-type').value = storedConfig.lineType;
-                    }
-                    // Apply stored selection
-                    const sel = decodeSelection(storedConfig.selection);
-                    if (sel && (sel.matrix.length > 0 || sel.special.length > 0 || sel.indices.length > 0)) {
-                        for (const { platform, type } of sel.matrix) {
-                            const jobs = jobMatrix[platform]?.[type] || [];
-                            for (const { name } of jobs) {
-                                if (isDefaultSelectedJob(name)) selectedJobs.add(name);
-                            }
-                        }
-                        for (const group of sel.special) {
-                            const jobs = specialJobGroups[group] || [];
-                            for (const { name } of jobs) {
-                                if (isDefaultSelectedJob(name)) selectedJobs.add(name);
-                            }
-                        }
-                        for (const idx of sel.indices) {
-                            if (jobNameList[idx] && isDefaultSelectedJob(jobNameList[idx])) {
-                                selectedJobs.add(jobNameList[idx]);
-                            }
-                        }
-                    }
-                }
-                // If still nothing selected, select all platform jobs by default
-                if (selectedJobs.size === 0) {
-                    for (const platform of platformOrder) {
-                        for (const version of versionOrder) {
-                            for (const { name } of (jobMatrix[platform]?.[version] || [])) {
-                                if (isDefaultSelectedJob(name)) {
-                                    selectedJobs.add(name);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            renderJobList();
-
-            // Apply comparison mode from URL params
-            applyComparisonParam();
-
-            refreshAllUI();
         }
 
         function updateMatrixHighlights() {
@@ -5560,9 +5349,6 @@
 
         async function loadData() {
             try {
-                // Render empty matrix skeleton immediately
-                renderMatrixSkeleton();
-
                 const resp = await fetch('data/timing_summary.json');
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
@@ -5664,8 +5450,7 @@
 
                     // Recalculate pass rates with complete data and re-render matrix
                     calculateAllPassRates();
-                calculateAllBreakages();
-                    renderMatrixTable();
+                    calculateAllBreakages();
 
                     // Re-apply URL params with complete data to get full selection
                     // (partial data may have missed some jobs in matrix cells)
@@ -5760,36 +5545,6 @@
             } catch (e) {
                 return null;
             }
-        }
-
-        // Render empty matrix immediately so users see structure
-        function renderMatrixSkeleton() {
-            const matrixContainer = document.getElementById('job-matrix');
-            if (!matrixContainer) return;
-            let html = '<table class="matrix-table">';
-
-            // Header row
-            html += '<tr><th class="matrix-corner" title="Loading...">⋯</th>';
-            for (const version of versionOrder) {
-                html += `<th>${versionLabels[version]}</th>`;
-            }
-            html += '</tr>';
-
-            // Platform rows with loading placeholders
-            for (const platform of platformOrder) {
-                html += `<tr><th class="row-header">${platformLabels[platform]}</th>`;
-                for (const version of versionOrder) {
-                    html += `<td class="matrix-cell" data-platform="${platform}" data-type="${version}">⋯</td>`;
-                }
-                html += '</tr>';
-            }
-
-            // Special groups placeholder
-            html += '<tr><th class="row-header special-header" colspan="4">Special</th></tr>';
-            html += '<tr><td colspan="4" class="loading loading-small">Loading special jobs...</td></tr>';
-
-            html += '</table>';
-            matrixContainer.innerHTML = html;
         }
 
         /**
