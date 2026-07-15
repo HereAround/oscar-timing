@@ -2850,53 +2850,6 @@
             return { min, max };
         }
 
-        function classifyJob(name) {
-            const lower = name.toLowerCase();
-            //const vstring = lower.split(" ").find(Element => Element.includes("1."))
-            const versionMatch = lower.match(/\b1\.\d+(?:-nightly)?\b|\bnightly\b/);
-            const version = versionMatch ? versionMatch[0] : null;
-            // Pipeline jobs first (launch/unlock)
-            if (lower.includes('launch')) return { group: 'pipeline', type: 'pipeline' };
-            if (lower.includes('unlock')) return { group: 'pipeline', type: 'pipeline' };
-            if (lower.includes('juliasyntax')) return { group: 'juliasyntax', type: 'test' };
-            if (lower.includes('upload test results')) return { group: 'upload-results', type: 'upload' };
-            if (lower.includes('upload docs')) return { group: 'docs', type: 'upload' };
-            if (lower.includes('doctest') || lower.includes('pdf_docs')) return { group: 'docs', type: 'test' };
-
-            // Upload jobs go to special group (before platform checks)
-            if (lower.includes('upload')) return { group: 'upload', type: 'upload' };
-
-            // Platform-based grouping
-            if (lower.includes(':linux:') || lower.includes('linux')) {
-                if (lower.includes('coverage')) return { group: 'linux', type: 'coverage' };
-                if (lower.includes('build')) return { group: 'linux', type: 'build' };
-                if (lower.includes('test')) return { group: 'linux', type: 'test' };
-            }
-            if (lower.includes(':macos:') || lower.includes('macos') || lower.includes('darwin')) {
-                if (lower.includes('coverage')) return { group: 'macos', type: 'coverage' };
-                if (lower.includes('build')) return { group: 'macos', type: 'build' };
-                if (lower.includes('test')) return { group: 'macos', type: 'test' };
-            }
-            if (lower.includes(':windows:') || lower.includes('windows') || lower.includes('mingw')) {
-                if (lower.includes('coverage')) return { group: 'windows', type: 'coverage' };
-                if (lower.includes('build')) return { group: 'windows', type: 'build' };
-                if (lower.includes('test')) return { group: 'windows', type: 'test' };
-            }
-            if (lower.includes(':freebsd:') || lower.includes('freebsd')) {
-                if (lower.includes('coverage')) return { group: 'freebsd', type: 'coverage' };
-                if (lower.includes('build')) return { group: 'freebsd', type: 'build' };
-                if (lower.includes('test')) return { group: 'freebsd', type: 'test' };
-            }
-
-            // Special test types
-            if (['asan', 'tsan', 'analyzegc', 'llvmpasses', 'embedding', 'gcext', 'trimming'].includes(lower)) {
-                return { group: 'special', type: 'test' };
-            }
-            if (lower === 'test revise') return { group: 'special', type: 'test' };
-
-            return { group: 'other', type: 'other' };
-        }
-
         /**
          * Compute temporal moving average with Gaussian window.
          * Uses a Gaussian kernel for smooth weighting - points closer to the center
