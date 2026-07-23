@@ -409,32 +409,6 @@
         .stats-bar tr:hover { background: var(--color-neutral-muted); }
         .stats-bar tr.chart-hover-highlight,
         .stats-bar tr.chart-hover-highlight:hover { background: rgba(9,105,218,0.2) !important; }
-        .stats-bar tr.expandable { cursor: pointer; }
-        .stats-bar tr.expandable td:first-child::before {
-            content: '▶';
-            display: inline-block;
-            margin-right: 6px;
-            font-size: 8px;
-            transition: transform 0.15s;
-            color: var(--color-fg-muted);
-        }
-        .stats-bar tr.expandable.expanded td:first-child::before {
-            transform: rotate(90deg);
-        }
-        .stats-bar tr.host-row {
-            background: var(--color-canvas-inset);
-        }
-        .stats-bar tr.host-row td {
-            font-size: 10px;
-            padding: 4px 12px;
-            color: var(--color-fg-muted);
-        }
-        .stats-bar tr.host-row td:first-child {
-            padding-left: 28px;
-        }
-        .stats-bar tr.host-row:hover {
-            background: var(--color-neutral-muted);
-        }
 
         .loading { padding: 20px; text-align: center; color: var(--color-fg-muted); }
         .loading-overlay {
@@ -1012,7 +986,6 @@
                             <tr>
                                 <th scope="col" class="stats-select-col" title="Select/deselect all shown jobs"><input type="checkbox" id="stats-select-all" aria-label="Select all shown jobs" onchange="toggleAllVisibleStatsJobs(this.checked)"></th>
                                 <th scope="col" class="sortable" data-sort="job" onclick="handleStatsTableSort('job')">Job/Report <span class="sort-indicator">▲</span></th>
-                                <th scope="col">Hosts</th>
                                 <th scope="col" class="sortable" data-sort="passRate" title="Pass rate in last 14 days" onclick="handleStatsTableSort('passRate')">Pass Rate <span class="sort-indicator">▲</span></th>
                                 <th scope="col" class="sortable" data-sort="trend" title="Trend over selected time range" onclick="handleStatsTableSort('trend')">Trend <span class="sort-indicator">▲</span></th>
                                 <th scope="col" class="sortable" data-sort="median" onclick="handleStatsTableSort('median')">Median <span class="sort-indicator">▲</span></th>
@@ -1023,7 +996,7 @@
                             </tr>
                         </thead>
                         <tbody id="stats-tbody">
-                            <tr><td colspan="10" class="loading">Loading...</td></tr>
+                            <tr><td colspan="9" class="loading">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1071,7 +1044,6 @@
         let timeRangeDays = DEFAULT_TIME_RANGE;
         let lineType = DEFAULT_LINE_TYPE;
         let excludedStates = new Set(['canceled']);  // States to exclude from display (canceled hidden by default)
-        let expandedJobs = new Set();  // Jobs expanded in stats table
         let jobColors = {};
         let chartMetadata = {};
         // Custom zoom state (null = use timeRangeDays preset)
@@ -1932,20 +1904,7 @@
             } else {
                 url.searchParams.delete('l');
             }
-            // Add expanded jobs if any
-            if (expandedJobs.size > 0) {
-                const expandedIndices = [...expandedJobs]
-                    .map(name => jobIndexMap[name])
-                    .filter(idx => idx !== undefined)
-                    .sort((a, b) => a - b);
-                if (expandedIndices.length > 0) {
-                    url.searchParams.set('e', expandedIndices.join('_'));
-                } else {
-                    url.searchParams.delete('e');
-                }
-            } else {
-                url.searchParams.delete('e');
-            }
+            url.searchParams.delete('e');
             // Add excluded states if different from default (canceled only)
             const defaultExcluded = new Set(['canceled']);
             const isDefaultStates = excludedStates.size === defaultExcluded.size &&
@@ -2037,16 +1996,6 @@
             if (l !== null && VALID_LINE_TYPES.includes(l)) {
                 lineType = l;
                 document.getElementById('line-type').value = l;
-            }
-
-            // Apply expanded jobs
-            const e = params.get('e');
-            if (e) {
-                expandedJobs.clear();
-                const indices = e.split('_').map(Number).filter(n => !isNaN(n));
-                for (const idx of indices) {
-                    if (jobNameList[idx]) expandedJobs.add(jobNameList[idx]);
-                }
             }
 
             // Apply state filter
@@ -3240,7 +3189,7 @@
                                 const dataset = chart.data.datasets[el.datasetIndex];
                                 const yAxisID = dataset.yAxisID || 'y';
                                 highlightYAxis(yAxisID);
-                                highlightStatsRow(meta.job, meta.agent);
+                                highlightStatsRow(meta.job);
                             }
                         } else {
                             clearYAxisHighlight();
@@ -3517,13 +3466,12 @@
 
         // Stats row highlighting (for chart hover)
         let highlightedStatsRow = null;
-        let highlightedHostRow = null;
-        function highlightStatsRow(jobName, agent = null) {
+        function highlightStatsRow(jobName) {
             clearStatsRowHighlight();
             // Find row by iterating (safer than CSS selector with special chars)
             const rows = document.querySelectorAll('#stats-tbody tr[data-job]');
             for (const row of rows) {
-                if (row.dataset.job === jobName && !row.dataset.agent) {
+                if (row.dataset.job === jobName) {
                     row.classList.add('chart-hover-highlight');
                     highlightedStatsRow = row;
                     // Scroll into view if not visible
@@ -3538,17 +3486,6 @@
                     break;
                 }
             }
-            // Also highlight the host row if job is expanded and agent is specified
-            if (agent && expandedJobs.has(jobName)) {
-                const hostRows = document.querySelectorAll('#stats-tbody tr.host-row[data-job][data-agent]');
-                for (const hostRow of hostRows) {
-                    if (hostRow.dataset.job === jobName && hostRow.dataset.agent === agent) {
-                        hostRow.classList.add('chart-hover-highlight');
-                        highlightedHostRow = hostRow;
-                        break;
-                    }
-                }
-            }
         }
 
         function clearStatsRowHighlight() {
@@ -3556,13 +3493,9 @@
                 highlightedStatsRow.classList.remove('chart-hover-highlight');
                 highlightedStatsRow = null;
             }
-            if (highlightedHostRow) {
-                highlightedHostRow.classList.remove('chart-hover-highlight');
-                highlightedHostRow = null;
-            }
         }
 
-        // Highlight a specific job/agent in the chart, de-emphasizing others
+        // Highlight a specific chart dataset, de-emphasizing others
         let highlightActive = false;
         function highlightChartDataset(jobColor, agent = null, yAxisID = 'y') {
             if (!chart) return;
@@ -3835,7 +3768,6 @@
             const baseHeaders = `
                 <th scope="col" class="stats-select-col" title="Select/deselect all shown jobs"><input type="checkbox" id="stats-select-all" aria-label="Select all shown jobs" onchange="toggleAllVisibleStatsJobs(this.checked)"></th>
                 <th scope="col" class="sortable" data-sort="job" onclick="handleStatsTableSort('job')">Job/Report <span class="sort-indicator">▲</span></th>
-                <th scope="col">Hosts</th>
                 <th scope="col" class="sortable" data-sort="passRate" title="Pass rate in last 14 days" onclick="handleStatsTableSort('passRate')">Pass Rate <span class="sort-indicator">▲</span></th>
                 <th scope="col" class="sortable" data-sort="trend" title="Trend over selected time range" onclick="handleStatsTableSort('trend')">Trend <span class="sort-indicator">▲</span></th>
                 <th scope="col" class="sortable" data-sort="median" onclick="handleStatsTableSort('median')">Median <span class="sort-indicator">▲</span></th>
@@ -3862,7 +3794,7 @@
             // Update table header for comparison mode
             updateStatsTableHeader();
 
-            const colSpan = comparisonData ? 13 : 10;
+            const colSpan = comparisonData ? 12 : 9;
             const visibleJobNames = getVisibleJobNames();
             if (visibleJobNames.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${colSpan}" class="loading">No matching jobs</td></tr>`;
@@ -3888,12 +3820,6 @@
                     const date = new Date(r.date);
                     return (!rangeMin || date >= rangeMin) && (!rangeMax || date <= rangeMax);
                 });
-                const agentCounts = {};
-                for (const r of allRunsInRange) {
-                    const agent = r.agent || '';
-                    if (agent) agentCounts[agent] = (agentCounts[agent] || 0) + 1;
-                }
-                const agents = Object.entries(agentCounts).sort((a, b) => b[1] - a[1]);  // Sort by count desc
 
                 // Calculate pass rate from all runs in range (ignoring state filter)
                 let prPassed = 0, prFailed = 0, prTimedOut = 0, prCanceled = 0, prRetries = 0;
@@ -3933,7 +3859,6 @@
                 jobStats.push({
                     jobName,
                     color: jobColors[jobName],
-                    agents,
                     median,
                     mean,
                     min,
@@ -4098,7 +4023,6 @@
                 aggRow.innerHTML = `
                     <td class="stats-select-col"></td>
                     <td>All (${selectedJobStats.length} jobs)</td>
-                    <td></td>
                     <td>${aggPassRateHtml}</td>
                     <td>${aggTrendResult.html}</td>
                     <td></td>
@@ -4112,31 +4036,7 @@
             }
 
             for (const stat of jobStats) {
-                const { jobName, color, agents, median, mean, min, max, std, trend, pr, n } = stat;
-
-                // Build hosts HTML with perceptually-adjusted hue-shifted colors
-                let hostsHtml = '';
-                if (agents.length > 0) {
-                    const baseShift = 20;
-                    const baseHue = getHueFromColor(color);
-                    const maxShift = baseShift * getPerceptualHueMultiplier(baseHue);
-                    const maxDotsShown = 10;
-                    const displayAgents = agents.length > maxDotsShown ? agents.slice(0, maxDotsShown) : agents;
-                    const hostDots = displayAgents.map(([agent, count], i) => {
-                        const hueShift = displayAgents.length > 1
-                            ? -maxShift + (2 * maxShift * i / (displayAgents.length - 1))
-                            : 0;
-                        const hostColor = shiftHue(color, hueShift);
-                        return `<span class="color-dot" style="background: ${hostColor}" title="${escapeHtml(agent)}: ${count} runs"></span>`;
-                    }).join('');
-                    if (agents.length > maxDotsShown) {
-                        const hiddenCount = agents.length - maxDotsShown;
-                        const hiddenAgents = agents.slice(maxDotsShown).map(([a, c]) => `${a}: ${c} runs`).join('\n');
-                        hostsHtml = hostDots + `<span class="text-muted" title="${escapeHtml(hiddenAgents)}">+${hiddenCount}</span>`;
-                    } else {
-                        hostsHtml = hostDots;
-                    }
-                }
+                const { jobName, color, median, mean, min, max, std, trend, pr, n } = stat;
 
                 let passRateHtml = '<span class="text-muted">—</span>';
                 if (pr && pr.total > 0) {
@@ -4171,18 +4071,8 @@
                     passRateHtml = `<span style="color: ${prColor}" title="${escapeHtml(breakdown + ' out of ' + pr.total + ' in selected range')}">${pct}%${icons ? ' ' + icons : ''}</span>`;
                 }
 
-                const isExpanded = expandedJobs.has(jobName);
-                const hasMultipleHosts = agents.length > 1;
-
                 const row = document.createElement('tr');
                 row.dataset.job = jobName;
-                if (hasMultipleHosts) {
-                    row.className = `expandable${isExpanded ? ' expanded' : ''}`;
-                    row.onclick = (event) => {
-                        if (event.target.closest('input[type="checkbox"]')) return;
-                        toggleJobExpand(jobName);
-                    };
-                }
                 row.onmouseenter = () => {
                     if (getPlottedJobNames().includes(jobName)) highlightChartDataset(color);
                 };
@@ -4233,7 +4123,6 @@
                 row.innerHTML = `
                     <td class="stats-select-col"><input type="checkbox" class="stats-job-checkbox" data-job="${escapeHtml(jobName)}" ${selectedJobs.has(jobName) ? 'checked' : ''} aria-label="Show ${escapeHtml(convertEmojiText(jobName))}" onclick="event.stopPropagation()"></td>
                     <td><span class="color-dot" style="background: ${color}"></span> ${convertEmoji(escapeHtml(jobName))}</td>
-                    <td>${hostsHtml}</td>
                     <td>${passRateHtml}</td>
                     ${trendCell}
                     <td class="duration">${formatDuration(median)}</td>
@@ -4247,131 +4136,6 @@
                     toggleStatsJob(jobName, event.target.checked);
                 });
                 tbody.appendChild(row);
-
-                // Add host detail rows if expanded
-                if (isExpanded && hasMultipleHosts) {
-                    const job = data.jobs[jobName];
-                    const baseShift = 20;
-                    const baseHue = getHueFromColor(color);
-                    const maxShift = baseShift * getPerceptualHueMultiplier(baseHue);
-
-                    for (let i = 0; i < agents.length; i++) {
-                        const [agent, count] = agents[i];
-                        const hueShift = agents.length > 1
-                            ? -maxShift + (2 * maxShift * i / (agents.length - 1))
-                            : 0;
-                        const hostColor = shiftHue(color, hueShift);
-
-                        // Calculate stats for this host only (respects state filter)
-                        const allHostRuns = job.recent.filter(r => {
-                            if (r.agent !== agent) return false;
-                            const date = new Date(r.date);
-                            return date >= rangeMin && date <= rangeMax;
-                        });
-                        const hostFilteredRuns = allHostRuns.filter(r => {
-                            const runState = getRunState(r);
-                            return excludedStates.size === 0 || !excludedStates.has(runState);
-                        });
-                        const hostDurations = hostFilteredRuns.map(r => r.duration);
-                        const hostSorted = [...hostDurations].sort((a, b) => a - b);
-                        const hostMedian = hostDurations.length > 0 ? hostSorted[Math.floor(hostDurations.length / 2)] : 0;
-                        const hostMean = hostDurations.length > 0 ? hostDurations.reduce((a, b) => a + b, 0) / hostDurations.length : 0;
-                        const hostMin = hostDurations.length > 0 ? Math.min(...hostDurations) : 0;
-                        const hostMax = hostDurations.length > 0 ? Math.max(...hostDurations) : 0;
-                        const hostVariance = hostDurations.length > 0 ? hostDurations.reduce((sum, d) => sum + (d - hostMean) ** 2, 0) / hostDurations.length : 0;
-                        const hostStd = Math.sqrt(hostVariance);
-                        const hostTrend = computeTrend(hostFilteredRuns);
-                        const hostN = hostFilteredRuns.length;
-
-                        // Calculate pass rate for this host from all runs in time range
-                        let hostPrHtml = '<span class="text-muted">—</span>';
-                        const hostTotal = allHostRuns.length;
-                        if (hostTotal > 0) {
-                            let hostPassed = 0, hostFailed = 0, hostTimedOut = 0, hostCanceled = 0, hostRetries = 0;
-                            for (const run of allHostRuns) {
-                                const state = run.state || 'passed';
-                                if (state === 'passed') hostPassed++;
-                                else if (state === 'failed') hostFailed++;
-                                else if (state === 'timed_out') hostTimedOut++;
-                                else if (state === 'canceled') hostCanceled++;
-                                if (run.retry > 0) hostRetries++;
-                            }
-                            const hostRate = hostPassed / hostTotal;
-                            const hostPct = Math.round(hostRate * 100);
-                            // Color: green=100%, yellow>=90%, red<90%
-                            const hostPrColor = hostRate >= 1 ? 'var(--color-success-fg)' : (hostRate >= PASS_RATE_THRESHOLD ? 'var(--color-attention-fg)' : 'var(--color-danger-fg)');
-
-                            // Check for recent failures/timeouts using same logic as hasRecentFailure
-                            const now = new Date();
-                            const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                            const hostLastThree = allHostRuns.slice(0, Math.min(3, allHostRuns.length));
-                            let hostHasFailure = false, hostHasTimeout = false;
-                            let hostRecentFailed = 0, hostRecentTimedOut = 0;
-                            for (const run of hostLastThree) {
-                                const runDate = new Date(run.date);
-                                const state = run.state || 'passed';
-                                if (state === 'failed') {
-                                    hostRecentFailed++;
-                                    if (runDate >= last24h) hostHasFailure = true;
-                                } else if (state === 'timed_out') {
-                                    hostRecentTimedOut++;
-                                    if (runDate >= last24h) hostHasTimeout = true;
-                                }
-                            }
-                            if (hostRecentFailed > 0) hostHasFailure = true;
-                            if (hostRecentTimedOut > 0) hostHasTimeout = true;
-
-                            // Icons: ⚠️ if recent failure, ⏳ if recent timeout, 🔄 if retries present
-                            let hostIcons = '';
-                            if (hostHasFailure) hostIcons += '⚠️';
-                            if (hostHasTimeout) hostIcons += '⏳';
-                            if (hostRetries > 0) hostIcons += '🔄';
-                            const parts = [];
-                            if (hostFailed > 0) parts.push(`${hostFailed} failed`);
-                            if (hostTimedOut > 0) parts.push(`${hostTimedOut} timed out`);
-                            if (hostCanceled > 0) parts.push(`${hostCanceled} canceled`);
-                            if (hostRetries > 0) parts.push(`${hostRetries} retries`);
-                            let breakdown = parts.length > 0 ? parts.join(', ') : 'all passed';
-                            if (hostHasFailure) {
-                                const breakageInfo = jobBreakages[jobName];
-                                if (breakageInfo) {
-                                    breakdown += `\nCurrently failing: ${hostRecentFailed}/${hostLastThree.length} recent runs failed ⚡ broke at ${breakageInfo.commit.substring(0, 8)}`;
-                                } else {
-                                    breakdown += `\nCurrently failing: ${hostRecentFailed}/${hostLastThree.length} recent runs failed`;
-                                }
-                            }
-                            if (hostHasTimeout) breakdown += `\nCurrently timing out: ${hostRecentTimedOut}/${hostLastThree.length} recent runs timed-out`;
-                            hostPrHtml = `<span style="color: ${hostPrColor}" title="${escapeHtml(breakdown + ' out of ' + hostTotal + ' in selected range')}">${hostPct}%${hostIcons ? ' ' + hostIcons : ''}</span>`;
-                        }
-
-                        const hostRow = document.createElement('tr');
-                        hostRow.className = 'host-row';
-                        hostRow.dataset.job = jobName;
-                        hostRow.dataset.agent = agent;
-                        hostRow.onmouseenter = () => {
-                            if (getPlottedJobNames().includes(jobName)) highlightChartDataset(color, agent);
-                        };
-                        hostRow.onmouseleave = () => clearChartHighlight();
-                        const hostTrendResult = formatTrend(hostTrend, hostColor);
-                        const hostTrendCell = hostTrendResult.trendData
-                            ? `<td class="trend-cell" data-trend='${hostTrendResult.trendData}'>${hostTrendResult.html}</td>`
-                            : `<td>${hostTrendResult.html}</td>`;
-                        const hostComparisonCells = comparisonData ? '<td class="comparison-col comparison-col-first"></td><td class="comparison-col"></td><td class="comparison-col"></td>' : '';
-                        hostRow.innerHTML = `
-                            <td><span class="color-dot" style="background: ${hostColor}"></span> ${escapeHtml(agent)}</td>
-                            <td></td>
-                            <td>${hostPrHtml}</td>
-                            ${hostTrendCell}
-                            <td class="duration">${formatDuration(hostMedian)}</td>
-                            <td class="duration">${formatDuration(hostMin)}</td>
-                            <td class="duration">${formatDuration(hostMax)}</td>
-                            <td class="duration">±${formatDuration(hostStd)}</td>
-                            <td>${hostN}</td>
-                            ${hostComparisonCells}
-                        `;
-                        tbody.appendChild(hostRow);
-                    }
-                }
             }
 
             // Add coverage report rows if coverage jobs are selected
@@ -4417,7 +4181,7 @@
                 if (jobStats.length > 0) {
                     const sepRow = document.createElement('tr');
                     sepRow.className = 'separator-row';
-                    sepRow.innerHTML = '<td colspan="10"></td>';
+                    sepRow.innerHTML = `<td colspan="${colSpan}"></td>`;
                     tbody.appendChild(sepRow);
                 }
 
@@ -4433,8 +4197,8 @@
                         ? `<td class="trend-cell" data-trend='${trendResult.trendData}'>${trendResult.html}</td>`
                         : `<td>${trendResult.html}</td>`;
                     row.innerHTML = `
+                        <td class="stats-select-col"></td>
                         <td><svg class="coverage-logo" viewBox="0 0 24 24" fill="#3F5EFB"><path d="M0 12v12h24V0H0v12zm13.195-6.187l1.167 3.515 2.255.005c1.238.005 2.916.019 3.727.037l1.472.028-2.968 2.152c-1.632 1.181-2.976 2.18-2.99 2.212-.01.033.488 1.627 1.106 3.54.619 1.917 1.12 3.496 1.116 3.51-.005.019-1.343-.943-2.972-2.137l-2.963-2.161-2.972 2.161c-1.634 1.19-2.976 2.152-2.981 2.137-.005-.014.497-1.593 1.115-3.51.619-1.913 1.116-3.507 1.107-3.54-.014-.032-1.358-1.031-2.99-2.212L2.184 9.398l1.472-.028c.81-.018 2.488-.032 3.727-.037l2.254-.005 1.168-3.515a512.9 512.9 0 011.195-3.53c.005 0 .544 1.587 1.195 3.53z"/></svg>Coveralls</td>
-                        <td><span class="text-muted">—</span></td>
                         <td><span class="text-muted">—</span></td>
                         ${trendCell}
                         <td>${coverallsStats.median.toFixed(2)}%</td>
@@ -4458,8 +4222,8 @@
                         ? `<td class="trend-cell" data-trend='${trendResult.trendData}'>${trendResult.html}</td>`
                         : `<td>${trendResult.html}</td>`;
                     row.innerHTML = `
+                        <td class="stats-select-col"></td>
                         <td><svg class="coverage-logo" viewBox="0 0 24 24" fill="#F01F7A"><path d="M12.006.066c-6.63 0-12 5.37-12 12 0 6.631 5.37 12 12 12 6.631 0 12-5.369 12-12 0-6.63-5.369-12-12-12zm0 2.115a9.885 9.885 0 11-.002 19.77 9.885 9.885 0 01.002-19.77zm-.072 2.418a7.471 7.471 0 00-2.26.39L8.148 9.564a4.318 4.318 0 114.312 4.312l.002-.001a4.268 4.268 0 01-1.915-.467l-1.56 4.568a7.473 7.473 0 109.086-9.82 7.514 7.514 0 00-6.14-3.557z"/></svg>Codecov</td>
-                        <td><span class="text-muted">—</span></td>
                         <td><span class="text-muted">—</span></td>
                         ${trendCell}
                         <td>${codecovStats.median.toFixed(2)}%</td>
@@ -4474,16 +4238,6 @@
 
             updateSortIndicators();
             syncStatsSelectAllCheckbox();
-        }
-
-        function toggleJobExpand(jobName) {
-            if (expandedJobs.has(jobName)) {
-                expandedJobs.delete(jobName);
-            } else {
-                expandedJobs.add(jobName);
-            }
-            updateStatsTable();
-            updateURL();
         }
 
         function updateSortIndicators() {
@@ -4707,7 +4461,7 @@
                 const retryBtn = '<button class="btn btn-retry" onclick="location.reload()">Retry</button>';
                 document.getElementById('chart-loading').innerHTML = `<span class="error">Failed to load data</span>${retryBtn}`;
                 document.getElementById('stats-tbody').innerHTML = `
-                    <tr><td colspan="10" class="error">
+                    <tr><td colspan="9" class="error">
                         Failed to load data. Run <code>julia fetch_timing.jl</code> to generate data. ${retryBtn}
                     </td></tr>
                 `;
