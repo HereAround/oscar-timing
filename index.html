@@ -261,20 +261,9 @@
         .job-filter-input::placeholder {
             color: var(--color-fg-muted);
         }
-        .btn-small {
-            padding: 2px 6px;
-            font-size: 10px;
-            line-height: 14px;
-        }
         .coverage-logo { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
         .color-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         .bk-emoji { height: 1em; width: 1em; vertical-align: -0.1em; display: inline; }
-        .pass-rate { font-size: 9px; margin-left: auto; padding-left: 6px; white-space: nowrap; }
-        .pass-rate.green { color: var(--color-success-fg); }
-        .pass-rate.yellow { color: var(--color-attention-fg); }
-        .pass-rate.red { color: var(--color-danger-fg); }
-        .failure-indicator { color: var(--color-danger-fg); font-size: 9px; margin-left: 2px; }
-        .breakage-indicator { color: var(--color-severe-fg, #ff6b00); font-weight: bold; }
 
         /* Chart area */
         .content {
@@ -902,9 +891,8 @@
             vertical-align: middle;
             cursor: help;
         }
-        .link-no-underline { text-decoration: none; }
         .aggregate-row { font-weight: 600; border-bottom: 2px solid var(--color-border-default); }
-        .loading-small { font-size: 11px; }
+        .separator-row td { padding: 4px; border-bottom: 1px solid var(--color-border-muted); }
     </style>
 </head>
 <body>
@@ -1084,7 +1072,6 @@
         // Pass rate tracking
         const PASS_RATE_DAYS = 14;  // Track pass rate over last 14 days
         const PASS_RATE_THRESHOLD = 0.9;  // Below 90% shows warning
-        const PASS_RATE_MIN_RUNS = 3;  // Need at least 3 runs to show warning
 
         // Statistical significance
         const TREND_SIGNIFICANCE_P_VALUE = 0.05;  // p-value threshold for statistical significance
@@ -1156,18 +1143,6 @@
             updateJuliaVersionFilterUI();
             updateChart();
             updateStatsTable();
-        }
-
-        function refreshSelectionDrivenUI() {
-            // Selection changes should be absolute: an unchecked job must not remain
-            // visible via a lingering row-hover highlight or trend overlay.
-            clearChartHighlight();
-            clearStatsRowHighlight();
-            hideRegressionLine();
-            currentTrendCell = null;
-            updateChart();
-            updateStatsTable();
-            updateURL();
         }
 
         function refreshChartAfterSelectionChange() {
@@ -2423,24 +2398,30 @@
 
             menu.innerHTML = '';
 
-            // Add "Select all" / "Select none" controls
-            const selectAllItem = document.createElement('label');
-            selectAllItem.className = 'checkbox-dropdown-item';
-            selectAllItem.innerHTML = `<input type="checkbox" ${excludedHosts.size === 0 ? 'checked' : ''} onchange="setAllHostsVisible(this.checked)"> Select all`;
+            // Build controls with DOM APIs so host names are always treated as text.
+            const selectAllItem = document.createElement("label");
+            selectAllItem.className = "checkbox-dropdown-item";
+            const selectAllCheckbox = document.createElement("input");
+            selectAllCheckbox.type = "checkbox";
+            selectAllCheckbox.checked = excludedHosts.size === 0;
+            selectAllCheckbox.addEventListener("change", () => setAllHostsVisible(selectAllCheckbox.checked));
+            selectAllItem.append(selectAllCheckbox, " Select all");
             menu.appendChild(selectAllItem);
 
             if (allHosts.length > 0) {
-                const divider = document.createElement('div');
-                divider.className = 'checkbox-dropdown-divider';
+                const divider = document.createElement("div");
+                divider.className = "checkbox-dropdown-divider";
                 menu.appendChild(divider);
             }
 
-            // Add individual host checkboxes
             for (const host of allHosts) {
-                const item = document.createElement('label');
-                item.className = 'checkbox-dropdown-item';
-                const included = !excludedHosts.has(host);
-                item.innerHTML = `<input type="checkbox" ${included ? 'checked' : ''} onchange="toggleHostFilter('${host.replace(/'/g, "\\'")}', this)"> ${host}`;
+                const item = document.createElement("label");
+                item.className = "checkbox-dropdown-item";
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.checked = !excludedHosts.has(host);
+                checkbox.addEventListener("change", () => toggleHostFilter(host, checkbox));
+                item.append(checkbox, ` ${host}`);
                 menu.appendChild(item);
             }
 
@@ -2537,7 +2518,6 @@
             // Gaussian window: use windowDays as ~3σ (99.7% of weight within window)
             const sigma = windowDays / 3;
             const sigmaDays = sigma;
-            const sigmaMs = sigmaDays * 24 * 60 * 60 * 1000;
             const windowMs = windowDays * 24 * 60 * 60 * 1000;
 
             // Determine x domain
@@ -4217,7 +4197,6 @@
                 if (allTotal > 0) {
                     const aggRate = allPassed / allTotal;
                     const aggPct = Math.round(aggRate * 100);
-                    const aggFailures = allFailed + allTimedOut + allCanceled;
                     // Color: green=100%, yellow>=90%, red<90%
                     const prColor = aggRate >= 1 ? 'var(--color-success-fg)' : (aggRate >= PASS_RATE_THRESHOLD ? 'var(--color-attention-fg)' : 'var(--color-danger-fg)');
                     // Check if any job has recent failures or timeouts for warning icons
@@ -4282,7 +4261,7 @@
                             ? -maxShift + (2 * maxShift * i / (displayAgents.length - 1))
                             : 0;
                         const hostColor = shiftHue(color, hueShift);
-                        return `<span class="color-dot" style="background: ${hostColor}" title="${agent}: ${count} runs"></span>`;
+                        return `<span class="color-dot" style="background: ${hostColor}" title="${escapeHtml(agent)}: ${count} runs"></span>`;
                     }).join('');
                     if (agents.length > maxDotsShown) {
                         const hiddenCount = agents.length - maxDotsShown;
@@ -4387,7 +4366,7 @@
 
                 row.innerHTML = `
                     <td class="stats-select-col"><input type="checkbox" class="stats-job-checkbox" data-job="${escapeHtml(jobName)}" ${selectedJobs.has(jobName) ? 'checked' : ''} aria-label="Show ${escapeHtml(convertEmojiText(jobName))}" onclick="event.stopPropagation()"></td>
-                    <td><span class="color-dot" style="background: ${color}"></span> ${convertEmoji(jobName)}</td>
+                    <td><span class="color-dot" style="background: ${color}"></span> ${convertEmoji(escapeHtml(jobName))}</td>
                     <td>${hostsHtml}</td>
                     <td>${passRateHtml}</td>
                     ${trendCell}
@@ -4513,7 +4492,7 @@
                             : `<td>${hostTrendResult.html}</td>`;
                         const hostComparisonCells = comparisonData ? '<td class="comparison-col comparison-col-first"></td><td class="comparison-col"></td><td class="comparison-col"></td>' : '';
                         hostRow.innerHTML = `
-                            <td><span class="color-dot" style="background: ${hostColor}"></span> ${agent}</td>
+                            <td><span class="color-dot" style="background: ${hostColor}"></span> ${escapeHtml(agent)}</td>
                             <td></td>
                             <td>${hostPrHtml}</td>
                             ${hostTrendCell}
