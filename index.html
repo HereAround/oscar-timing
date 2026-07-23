@@ -13,7 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
     <style>
         /* GitHub-style colors with automatic light/dark mode */
         :root {
@@ -225,135 +225,6 @@
             max-width: 100%;
         }
 
-        /* Sidebar with matrix */
-        .sidebar {
-            width: 320px;
-            background: var(--color-canvas-subtle);
-            border-right: 1px solid var(--color-border-default);
-            display: none;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
-
-        /* Job Matrix */
-        .job-matrix {
-            padding: 8px;
-            flex-shrink: 0;
-            display: flex;
-            justify-content: center;
-            width: 100%;
-        }
-        .matrix-table {
-            border-collapse: collapse;
-            font-size: 11px;
-        }
-        .matrix-table th, .matrix-table td {
-            padding: 4px 12px;
-            text-align: center;
-            border: 1px solid var(--color-border-muted);
-        }
-        .matrix-table th {
-            background: var(--color-canvas-inset);
-            font-weight: 600;
-            color: var(--color-fg-default);
-        }
-        .matrix-table th.clickable {
-            cursor: pointer;
-        }
-        .matrix-table th.clickable:hover {
-            background: var(--color-neutral-muted);
-        }
-        .matrix-table th.row-header {
-            text-align: right;
-            white-space: nowrap;
-        }
-        .matrix-cell {
-            cursor: pointer;
-            min-width: 50px;
-            position: relative;
-        }
-        .matrix-cell:hover {
-            background: var(--color-neutral-muted);
-        }
-        .matrix-cell .job-count {
-            font-size: 10px;
-            color: var(--color-fg-muted);
-        }
-        .matrix-cell.has-selection {
-            background: var(--color-btn-primary-bg);
-            color: #fff;
-        }
-        .matrix-cell.has-selection .job-count {
-            color: rgba(255,255,255,0.8);
-        }
-        .matrix-cell.partial-selection {
-            background: rgba(31, 136, 61, 0.25);
-        }
-        .matrix-table .matrix-corner {
-            cursor: default;
-            text-align: right;
-        }
-
-        /* Collapsible section header */
-        .section-header {
-            display: none; /* Only show on mobile */
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--color-fg-muted);
-            background: var(--color-canvas-inset);
-            border-bottom: 1px solid var(--color-border-default);
-            cursor: pointer;
-            user-select: none;
-        }
-        .section-header-text::after {
-            content: ' ▼';
-            font-size: 10px;
-            transition: transform 0.2s ease;
-            display: inline-block;
-            margin-left: 4px;
-        }
-        .section-header.collapsed .section-header-text::after {
-            transform: rotate(-90deg);
-        }
-        .collapsible-content {
-            transition: max-height 0.25s ease, opacity 0.2s ease;
-            overflow: hidden;
-        }
-        .job-list-section .collapsible-content {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-        }
-        .collapsible-content.collapsed {
-            max-height: 0 !important;
-            opacity: 0;
-        }
-
-        /* Job list below matrix */
-        .job-list-section {
-            border-top: 1px solid var(--color-border-default);
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-        }
-        .job-list-header {
-            padding: 4px 12px;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--color-fg-muted);
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .job-list-controls {
-            padding: 4px 12px 6px;
-            flex-shrink: 0;
-        }
         .job-filter-input {
             width: 100%;
             padding: 4px 28px 4px 8px;
@@ -395,14 +266,8 @@
             font-size: 10px;
             line-height: 14px;
         }
-        .job-list-summary {
-            padding: 4px 12px 8px;
-            font-size: 11px;
-            color: var(--color-fg-muted);
-            flex-shrink: 0;
-        }        
-        .color-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         .coverage-logo { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+        .color-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         .bk-emoji { height: 1em; width: 1em; vertical-align: -0.1em; display: inline; }
         .pass-rate { font-size: 9px; margin-left: auto; padding-left: 6px; white-space: nowrap; }
         .pass-rate.green { color: var(--color-success-fg); }
@@ -410,8 +275,6 @@
         .pass-rate.red { color: var(--color-danger-fg); }
         .failure-indicator { color: var(--color-danger-fg); font-size: 9px; margin-left: 2px; }
         .breakage-indicator { color: var(--color-severe-fg, #ff6b00); font-weight: bold; }
-        .matrix-cell .failure-indicator { position: absolute; top: 1px; right: 2px; font-size: 8px; }
-        .matrix-cell .breakage-indicator { position: absolute; top: 1px; right: 12px; font-size: 9px; }
 
         /* Chart area */
         .content {
@@ -719,31 +582,6 @@
                 min-height: auto;
             }
 
-            .sidebar {
-                width: 100%;
-                border-right: none;
-                border-bottom: 1px solid var(--color-border-default);
-                max-height: none;
-            }
-
-            .job-matrix {
-                padding: 8px;
-                overflow-x: auto;
-            }
-            .matrix-table {
-                font-size: 10px;
-            }
-            .matrix-table th, .matrix-table td {
-                padding: 3px 4px;
-            }
-            .matrix-cell {
-                min-width: 40px;
-            }
-
-            .job-list-section {
-                max-height: 150px;
-            }
-
             .content {
                 min-height: 400px;
                 width: 100%;
@@ -824,47 +662,6 @@
                 display: none;
             }
 
-            .sidebar {
-                max-height: none;
-                overflow: visible;
-            }
-            .job-matrix {
-                padding: 4px;
-                -webkit-overflow-scrolling: touch;
-            }
-            .matrix-table {
-                font-size: 9px;
-            }
-            .matrix-table th, .matrix-table td {
-                padding: 4px 3px; /* Taller for touch */
-            }
-            .matrix-cell {
-                min-width: 32px;
-                min-height: 28px;
-            }
-            .job-list-section {
-                max-height: none;
-                overflow: visible;
-            }
-
-            /* Collapsible sections on mobile */
-            .section-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .job-matrix-wrapper .collapsible-content {
-                max-height: 280px;
-                overflow-y: auto;
-            }
-            .job-list-section .collapsible-content {
-                max-height: 150px;
-                overflow-y: auto;
-            }
-            .job-list-header {
-                display: none; /* Hide old header, use section-header instead */
-            }
-
             .content {
                 min-height: 350px;
                 width: 100%;
@@ -925,10 +722,6 @@
 
         /* Touch device optimizations */
         @media (hover: none) and (pointer: coarse) {
-            .matrix-cell:active {
-                background: var(--color-accent-emphasis);
-                color: white;
-            }
             .btn:active {
                 background: var(--color-btn-active-bg);
             }
@@ -1111,12 +904,6 @@
         }
         .link-no-underline { text-decoration: none; }
         .aggregate-row { font-weight: 600; border-bottom: 2px solid var(--color-border-default); }
-        .matrix-table th.special-header { text-align: center; padding-top: 8px; }
-        .special-buttons { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; justify-content: center; }
-        .special-buttons-cell { padding: 0; }
-        .separator-row td { padding: 4px; border-bottom: 1px solid var(--color-border-muted); }
-        .btn-special { font-size: 10px; padding: 3px 8px; }
-        .btn-retry { margin-left: 8px; }
         .loading-small { font-size: 11px; }
     </style>
 </head>
@@ -1239,34 +1026,6 @@
     </div>
 
     <main class="main">
-        <aside class="sidebar" aria-label="Job selection">
-            <div class="job-matrix-wrapper">
-                <div class="section-header" id="section-matrix" onclick="toggleSection(this)">
-                    <span class="section-header-text">Platform Matrix</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="job-matrix" id="job-matrix" role="grid" aria-label="Platform and test type matrix">
-                        <div class="loading">Loading...</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="job-list-section">
-                <div class="section-header" id="section-jobs" onclick="toggleSection(this)">
-                    <span class="section-header-text">
-                        Jobs (<span id="job-count-mobile">0 / 0</span>)
-                    </span>
-                </div>
-
-                <div class="collapsible-content">
-                    <div class="job-list-header">
-                        <span>Jobs (<span id="job-count">0 / 0</span>)</span>
-                    </div>
-
-                    <div class="job-list-summary" id="job-list" aria-live="polite"></div>
-                </div>
-            </div>
-        </aside>
         <div class="content">
             <div class="chart-container">
                 <div class="chart-wrapper">
@@ -1387,30 +1146,16 @@
 
         function setJuliaVersion(version) {
             selectedJuliaVersion = version;
-            updateJobCount();
             updateChart();
             updateStatsTable();
             updateURL();
         }        
 
         function refreshAllUI() {
-            updateJobCount();
             updateHostFilterUI();
             updateJuliaVersionFilterUI();
             updateChart();
             updateStatsTable();
-        }
-
-        function toggleJobsSelection(jobs) {
-            if (jobs.length === 0) return;
-            const allSelected = jobs.every(j => selectedJobs.has(j.name));
-            for (const { name } of jobs) {
-                if (allSelected) {
-                    selectedJobs.delete(name);
-                } else {
-                    selectedJobs.add(name);
-                }
-            }
         }
 
         function refreshSelectionDrivenUI() {
@@ -1420,7 +1165,6 @@
             clearStatsRowHighlight();
             hideRegressionLine();
             currentTrendCell = null;
-            updateJobCount();
             updateChart();
             updateStatsTable();
             updateURL();
@@ -1434,7 +1178,6 @@
             clearStatsRowHighlight();
             hideRegressionLine();
             currentTrendCell = null;
-            updateJobCount();
             syncStatsSelectAllCheckbox();
             updateURL();
             requestAnimationFrame(() => {
@@ -2164,19 +1907,7 @@
                 }
             }
         }
-
         // URL parameter handling for shareable links
-        const urlCodes = {
-            // Platform codes
-            'linux': 'l', 'macos': 'm', 'windows': 'w', 'freebsd': 'f',
-            // Type codes
-            'build': 'b', 'test': 't', 'upload': 'u', 'coverage': 'c',
-            // Version codes
-            '1.10': '1.10', '1.12': '1.12', '1.13-nightly': '1.13-nightly', 'nightly': 'n',
-            // Special group codes
-            'juliasyntax': 'js', 'docs': 'd', 'special': 'sp', 'pipeline': 'p', 'upload-results': 'ur', 'other': 'o'
-        };
-        const urlCodesReverse = Object.fromEntries(Object.entries(urlCodes).map(([k, v]) => [v, k]));
 
         // Job index mapping for URL encoding (built after data loads)
         let jobIndexMap = {};  // name -> index
@@ -2188,73 +1919,21 @@
             jobNameList.forEach((name, i) => jobIndexMap[name] = i);
         }
 
-        /**
-         * Encode current job selection into compact URL-safe string.
-         * Uses short codes for matrix cells, special groups, and job indices.
-         * @returns {string} Encoded selection string for URL parameter
-         */
+        /** Encode the selected jobs as indices in the sorted job list. */
         function encodeSelection() {
-            const parts = [];
-            const coveredJobs = new Set();
-
-            // Encode matrix cells that are fully selected
-            for (const platform of platformOrder) {
-                for (const version of versionOrder) {
-                    const jobs = jobMatrix[platform]?.[version] || [];
-                    if (jobs.length > 0 && jobs.every(j => selectedJobs.has(j.name))) {
-                        parts.push(urlCodes[platform] + urlCodes[version]);
-                        jobs.forEach(j => coveredJobs.add(j.name));
-                    }
-                }
-            }
-            // Encode special groups that are fully selected
-            for (const group of specialGroups) {
-                const jobs = specialJobGroups[group] || [];
-                if (jobs.length > 0 && jobs.every(j => selectedJobs.has(j.name))) {
-                    parts.push(urlCodes[group]);
-                    jobs.forEach(j => coveredJobs.add(j.name));
-                }
-            }
-
-            // Encode remaining individual jobs by index
-            const individualIndices = [];
-            for (const name of selectedJobs) {
-                if (!coveredJobs.has(name) && jobIndexMap[name] !== undefined) {
-                    individualIndices.push(jobIndexMap[name]);
-                }
-            }
-            if (individualIndices.length > 0) {
-                parts.push('i' + individualIndices.sort((a, b) => a - b).join('_'));
-            }
-
-            return parts.join('.');
+            const indices = [...selectedJobs]
+                .map(name => jobIndexMap[name])
+                .filter(index => index !== undefined)
+                .sort((a, b) => a - b);
+            return indices.length > 0 ? `i${indices.join("_")}` : "";
         }
 
-        /**
-         * Decode job selection from URL parameter string.
-         * @param {string} param - Encoded selection string from URL
-         * @returns {Object|null} Object with {matrix, special, indices} arrays, or null if invalid
-         */
         function decodeSelection(param) {
-            if (!param) return null;
-            const selections = { matrix: [], special: [], indices: [] };
-            for (const part of param.split('.')) {
-                if (part.startsWith('i')) {
-                    // Individual job indices: i0_5_12
-                    const indices = part.slice(1).split('_').map(Number).filter(n => !isNaN(n));
-                    selections.indices.push(...indices);
-                } else if (part.length === 2 && urlCodesReverse[part[0]] && urlCodesReverse[part[1]]) {
-                    // Matrix cell: e.g., "lb" = linux-build
-                    const platform = urlCodesReverse[part[0]];
-                    const type = urlCodesReverse[part[1]];
-                    if (platform && type) selections.matrix.push({ platform, type });
-                } else {
-                    // Special group
-                    const group = urlCodesReverse[part];
-                    if (group) selections.special.push(group);
-                }
-            }
-            return selections;
+            if (!param?.startsWith("i")) return null;
+            const indices = param.slice(1).split("_")
+                .map(Number)
+                .filter(Number.isInteger);
+            return indices.length > 0 ? { indices } : null;
         }
 
         function updateURL() {
@@ -2443,18 +2122,10 @@
             if (!sel) return false;
 
             selectedJobs.clear();
-            for (const { platform, type } of sel.matrix) {
-                const jobs = jobMatrix[platform]?.[type] || [];
-                for (const { name } of jobs) selectedJobs.add(name);
-            }
-            for (const group of sel.special) {
-                const jobs = specialJobGroups[group] || [];
-                for (const { name } of jobs) selectedJobs.add(name);
-            }
             for (const idx of sel.indices) {
                 if (jobNameList[idx]) selectedJobs.add(jobNameList[idx]);
             }
-            return sel.matrix.length > 0 || sel.special.length > 0 || sel.indices.length > 0;
+            return sel.indices.length > 0;
         }
 
         // Parse comparison data from URL parameter
@@ -5024,14 +4695,12 @@
             jobFilterText = value;
             const clearButton = document.getElementById('job-filter-clear');
             clearButton.style.display = value ? 'block' : 'none';
-            renderJobList();
 
             if (jobFilterTimer !== null) {
                 clearTimeout(jobFilterTimer);
             }
 
             jobFilterTimer = setTimeout(() => {
-                updateJobCount();
                 updateChart();
                 updateStatsTable();
                 updateURL();
@@ -5044,50 +4713,6 @@
             input.value = '';
             setJobFilter('');
             input.focus();
-        }
-
-        // Matrix organization
-        const platformOrder = ['linux', 'macos'];
-        const typeOrder = ['build', 'test', 'coverage'];
-        const versionOrder = ['1.10','1.12','1.13-nightly','nightly'];
-        const platformLabels = {
-            'linux': `<img src="${BUILDKITE_EMOJI_BASE}/linux.png" class="bk-emoji"> Linux`,
-            'macos': `<img src="${BUILDKITE_EMOJI_BASE}/mac.png" class="bk-emoji"> macOS`,
-        };
-        const versionLabels = {
-          '1.10': '1.10',
-          '1.12': '1.12',
-          '1.13-nightly': '1.13-nightly',
-          'nightly': 'nightly'
-        }
-        const typeLabels = {
-            'build': 'Build',
-            'test': 'Test',
-            'coverage': 'Coverage'
-        };
-        const specialGroups = ['upload', 'juliasyntax', 'docs', 'special', 'pipeline', 'upload-results', 'other'];
-        const specialLabels = {
-            'upload': '📤 Upload',
-            'juliasyntax': '📝 JuliaSyntax',
-            'docs': '📚 Docs',
-            'special': '🔬 Special',
-            'pipeline': '⚙️ Pipeline',
-            'upload-results': '📤 Results',
-            'other': '📦 Other'
-        };
-
-        // Job matrix data: matrix[platform][type] = [jobs]
-        let jobMatrix = {};
-        let specialJobGroups = {};
-
-        function renderJobList() {
-            const listContainer = document.getElementById('job-list');
-
-            if (getVisibleJobNames().length === 0) {
-                listContainer.textContent = 'No matches';
-            } else {
-                listContainer.textContent = '';
-            }
         }
 
         function populateJobSelector() {
@@ -5103,123 +4728,6 @@
             // Calculate pass rates and breakages for all jobs
             calculateAllPassRates();
             calculateAllBreakages();
-        }
-
-        function updateJobCount() {
-            const total = Object.keys(data.jobs).length;
-            const visible = getVisibleJobNames().length;
-            const selectedVisible = getVisibleJobNames().filter(name => selectedJobs.has(name)).length;
-            const countText = `${selectedVisible} selected / ${visible} shown / ${total}`;
-            document.getElementById('job-count').textContent = countText;
-            const mobileCount = document.getElementById('job-count-mobile');
-            if (mobileCount) mobileCount.textContent = countText;
-        }
-
-        // Toggle collapsible section (mobile) with localStorage persistence
-        function toggleSection(header) {
-            header.classList.toggle('collapsed');
-            const content = header.nextElementSibling;
-            if (content) content.classList.toggle('collapsed');
-
-            // Save state to localStorage
-            if (header.id) {
-                const collapsed = header.classList.contains('collapsed');
-                try {
-                    localStorage.setItem(`section-${header.id}`, collapsed ? '1' : '0');
-                } catch (e) { /* ignore */ }
-            }
-        }
-
-        // Restore collapsed section states from localStorage (mobile only)
-        function restoreSectionStates() {
-            const isMobile = window.innerWidth <= 480;
-            document.querySelectorAll('.section-header[id]').forEach(header => {
-                const content = header.nextElementSibling;
-                if (isMobile) {
-                    // On mobile, restore saved state
-                    try {
-                        const saved = localStorage.getItem(`section-${header.id}`);
-                        if (saved === '1') {
-                            header.classList.add('collapsed');
-                            if (content) content.classList.add('collapsed');
-                        } else {
-                            header.classList.remove('collapsed');
-                            if (content) content.classList.remove('collapsed');
-                        }
-                    } catch (e) { /* ignore */ }
-                } else {
-                    // On larger screens, always show sections expanded
-                    header.classList.remove('collapsed');
-                    if (content) content.classList.remove('collapsed');
-                }
-            });
-        }
-        restoreSectionStates();
-
-        // Re-check section visibility on resize
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 480) {
-                // Ensure sections are expanded on larger screens
-                document.querySelectorAll('.section-header[id]').forEach(header => {
-                    header.classList.remove('collapsed');
-                    const content = header.nextElementSibling;
-                    if (content) content.classList.remove('collapsed');
-                });
-            }
-        });
-
-        function toggleMatrixCell(platform, version) {
-            toggleJobsSelection(jobMatrix[platform][version]);
-            refreshAllUI();
-            updateURL();
-        }
-
-        function selectByPlatform(platform) {
-            const jobs = [];
-            for (const version of versionOrder) {
-                jobs.push(...jobMatrix[platform][version]);
-            }
-            toggleJobsSelection(jobs);
-            refreshAllUI();
-            updateURL();
-        }
-
-        function selectAllMatrix() {
-            const jobs = [];
-            for (const platform of platformOrder) {
-                for (const version of versionOrder) {
-                    jobs.push(...jobMatrix[platform][version]);
-                }
-            }
-            toggleJobsSelection(jobs);
-            refreshAllUI();
-            updateURL();
-        }
-
-        function selectAllSpecial() {
-            const jobs = [];
-            for (const group of specialGroups) {
-                jobs.push(...(specialJobGroups[group] || []));
-            }
-            toggleJobsSelection(jobs);
-            refreshAllUI();
-            updateURL();
-        }
-
-        function selectByType(version) {
-            const jobs = [];
-            for (const platform of platformOrder) {
-                jobs.push(...jobMatrix[platform][version]);
-            }
-            toggleJobsSelection(jobs);
-            refreshAllUI();
-            updateURL();
-        }
-
-        function toggleSpecialGroup(group) {
-            toggleJobsSelection(specialJobGroups[group]);
-            refreshAllUI();
-            updateURL();
         }
 
         function timeAgo(dateString) {
@@ -5324,81 +4832,35 @@
                 // Check if data is stale (more than 3 days old)
                 checkStaleData(data.generated_at);
 
-                if (!uiRendered) {
-                    populateJobSelector();
-                    document.getElementById('chart-loading').style.display = 'none';
-                } else {
-                    // Update with complete data - rebuild matrix with all jobs
-                    buildJobIndex();
+                populateJobSelector();
+                document.getElementById("chart-loading").style.display = "none";
 
-                    // Reassign colors for any new jobs from complete data
-                    const allJobs = Object.keys(data.jobs);
-                    const colors = generateColors(allJobs.length);
-                    allJobs.forEach((name, i) => {
-                        jobColors[name] = colors[i];
-                    });
+                selectedJobs.clear();
+                const hasURLSelection = applyURLParams();
+                const hasComparisonMode = new URLSearchParams(window.location.search).has("c");
 
-                    // Recalculate pass rates with complete data and re-render matrix
-                    calculateAllPassRates();
-                    calculateAllBreakages();
-
-                    // Re-apply URL params with complete data to get full selection
-                    // (partial data may have missed some jobs in matrix cells)
-                    selectedJobs.clear();
-                    const hasURLSelection = applyURLParams();
-
-                    // Check if we're in comparison mode (takes priority over localStorage)
-                    const hasComparisonMode = new URLSearchParams(window.location.search).has('c');
-
-                    if (!hasURLSelection && !hasComparisonMode) {
-                        // Try localStorage
-                        const storedConfig = loadFromLocalStorage();
-                        if (storedConfig?.selection) {
-                            const sel = decodeSelection(storedConfig.selection);
-                            if (sel) {
-                                for (const { platform, type } of sel.matrix) {
-                                    const jobs = jobMatrix[platform]?.[type] || [];
-                                    for (const { name } of jobs) {
-                                        if (isDefaultSelectedJob(name)) selectedJobs.add(name);
-                                    }
-                                }
-                                for (const group of sel.special) {
-                                    const jobs = specialJobGroups[group] || [];
-                                    for (const { name } of jobs) {
-                                        if (isDefaultSelectedJob(name)) selectedJobs.add(name);
-                                    }
-                                }
-                                for (const idx of sel.indices) {
-                                    if (jobNameList[idx] && isDefaultSelectedJob(jobNameList[idx])) {
-                                        selectedJobs.add(jobNameList[idx]);
-                                    }
-                                }
-                            }
+                if (!hasURLSelection && !hasComparisonMode) {
+                    const storedSelection = decodeSelection(loadFromLocalStorage()?.selection);
+                    if (storedSelection) {
+                        for (const idx of storedSelection.indices) {
+                            const name = jobNameList[idx];
+                            if (name && isDefaultSelectedJob(name)) selectedJobs.add(name);
                         }
                     }
-
-                    // If still nothing selected and not in comparison mode, select all matrix jobs
-                    if (selectedJobs.size === 0 && !hasComparisonMode) {
-                        for (const platform of platformOrder) {
-                            for (const version of versionOrder) {
-                                for (const { name } of (jobMatrix[platform]?.[version] || [])) {
-                                    selectedJobs.add(name);
-                                }
-                            }
-                        }
-                    }
-
-                    // Re-apply comparison mode with complete data
-                    applyComparisonParam();
-
-                    refreshAllUI();
                 }
+
+                if (selectedJobs.size === 0 && !hasComparisonMode) {
+                    for (const name of jobNameList) {
+                        if (isDefaultSelectedJob(name)) selectedJobs.add(name);
+                    }
+                }
+
+                applyComparisonParam();
+                refreshAllUI();
             } catch (err) {
                 console.error('Failed to load data:', err);
                 const retryBtn = '<button class="btn btn-retry" onclick="location.reload()">Retry</button>';
                 document.getElementById('chart-loading').innerHTML = `<span class="error">Failed to load data</span>${retryBtn}`;
-                document.getElementById('job-matrix').innerHTML = `<div class="error">Failed to load ${retryBtn}</div>`;
-                document.getElementById('job-list').innerHTML = `<div class="error">Failed to load jobs ${retryBtn}</div>`;
                 document.getElementById('stats-tbody').innerHTML = `
                     <tr><td colspan="10" class="error">
                         Failed to load data. Run <code>julia fetch_timing.jl</code> to generate data. ${retryBtn}
