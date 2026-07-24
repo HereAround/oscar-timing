@@ -27,8 +27,11 @@ Each data update adds its source CSV under `data/raw/` and regenerates
 `data/timing_summary.json`. The raw files are retained as producer inputs and
 as the reproducible archive behind the generated summary.
 
-Pushing to `main` deploys only the dashboard, favicon, domain configuration,
-and summary JSON to GitHub Pages. The raw benchmark exports remain in Git but
+The static frontend is split into the markup in `index.html` and the readable
+CSS and JavaScript sources under `assets/`. No build step is required.
+
+Pushing to `main` deploys only the dashboard assets, favicon, domain
+configuration, and summary JSON to GitHub Pages. The raw benchmark exports remain in Git but
 are intentionally excluded from the public Pages artifact.
 
 ## License

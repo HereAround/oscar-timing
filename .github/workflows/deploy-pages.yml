@@ -29,7 +29,8 @@ jobs:
         run: |
           mkdir _site
           cp CNAME favicon.svg index.html _site/
-          mkdir _site/data
+          mkdir _site/assets _site/data
+          cp assets/dashboard.css assets/dashboard.js _site/assets/
           cp data/timing_summary.json _site/data/
 
       - uses: actions/upload-pages-artifact@v4
