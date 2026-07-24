@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- HTML decodes &amp; to the query-string separator before requesting the font. -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
     <style>
         /* GitHub-style colors with automatic light/dark mode */
@@ -169,60 +170,7 @@
             color: var(--color-fg-default);
             cursor: pointer;
         }
-        .checkbox-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        .checkbox-dropdown-btn {
-            padding: 4px 8px;
-            font-size: 12px;
-            background: var(--color-btn-bg);
-            border: 1px solid var(--color-btn-border);
-            border-radius: 6px;
-            color: var(--color-fg-default);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            white-space: nowrap;
-        }
-        .checkbox-dropdown-btn:hover { background: var(--color-btn-hover-bg); }
-        .checkbox-dropdown-btn::after {
-            content: '▾';
-            font-size: 10px;
-            opacity: 0.6;
-        }
-        .checkbox-dropdown-menu {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            margin-top: 2px;
-            background: var(--color-canvas-default);
-            border: 1px solid var(--color-border-default);
-            border-radius: 6px;
-            box-shadow: var(--color-overlay-shadow);
-            z-index: 1000;
-            min-width: 180px;
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 4px 0;
-        }
-        .checkbox-dropdown.open .checkbox-dropdown-menu { display: block; }
-        .checkbox-dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            cursor: pointer;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        .checkbox-dropdown-item:hover { background: var(--color-neutral-muted); }
-        .checkbox-dropdown-item input[type="checkbox"] {
-            margin: 0;
-            cursor: pointer;
-        }
+
         .btn.primary {
             background: var(--color-btn-primary-bg);
             border-color: var(--color-btn-primary-border);
@@ -525,6 +473,7 @@
 
         /* Tablet responsive */
         @media (max-width: 768px) {
+            /* These declarations override the base toolbar rules only at this breakpoint. */
             html, body { overflow: auto; }
             body { height: auto; min-height: 100vh; }
 
@@ -592,6 +541,7 @@
 
         /* Phone responsive (narrow touchscreens) */
         @media (max-width: 480px) {
+            /* Phone-specific overrides remain scoped to avoid changing larger layouts. */
             .toolbar {
                 padding: 4px 8px;
                 gap: 3px;
@@ -605,18 +555,6 @@
                 padding: 6px 8px; /* Taller touch targets */
                 font-size: 11px;
                 min-height: 32px;
-            }
-            .checkbox-dropdown-btn {
-                padding: 6px 8px;
-                min-height: 32px;
-                font-size: 11px;
-            }
-            .checkbox-dropdown-menu {
-                min-width: 140px;
-            }
-            .checkbox-dropdown-item {
-                padding: 10px 12px; /* Larger touch targets */
-                font-size: 13px;
             }
             .toolbar .updated { font-size: 9px; }
             #build-commit {
@@ -803,17 +741,7 @@
             <select class="time-select" id="julia-version" onchange="setJuliaVersion(this.value)" aria-label="Julia version">
                 <option value="all">All Julia versions</option>
             </select>
-            <div class="checkbox-dropdown" id="state-filter-dropdown">
-                <button class="checkbox-dropdown-btn" onclick="toggleStateDropdown(event)" aria-label="State filter">
-                    <span id="state-filter-label">States (3/4)</span>
-                </button>
-                <div class="checkbox-dropdown-menu" id="state-filter-menu">
-                    <label class="checkbox-dropdown-item"><input type="checkbox" checked onchange="toggleStateFilter('passed', this)"> Passed</label>
-                    <label class="checkbox-dropdown-item"><input type="checkbox" checked onchange="toggleStateFilter('failed', this)"> Failed</label>
-                    <label class="checkbox-dropdown-item"><input type="checkbox" checked onchange="toggleStateFilter('timed_out', this)"> Timed out</label>
-                    <label class="checkbox-dropdown-item"><input type="checkbox" onchange="toggleStateFilter('canceled', this)"> Canceled</label>
-                </div>
-            </div>
+
             <div class="job-filter-wrapper toolbar-job-filter">
                 <input id="job-filter" class="job-filter-input" type="search" placeholder="Search jobs…" aria-label="Search jobs" oninput="setJobFilter(this.value)">
                 <button id="job-filter-clear" class="job-filter-clear" onclick="clearJobFilter()" aria-label="Clear search" title="Clear search">×</button>
@@ -844,8 +772,6 @@
             <h3 id="popup-title">Job Details</h3>
             <div class="popup-info">
                 <div><span class="label">Job:</span> <span id="popup-job"></span></div>
-                <div><span class="label">Status:</span> <span id="popup-state"></span></div>
-                <div id="popup-retry-row" style="display: none;"><span class="label">Attempt:</span> <span id="popup-retry"></span></div>
                 <div><span class="label">Duration:</span> <span id="popup-duration"></span></div>
                 <div><span class="label">Date:</span> <span id="popup-date"></span></div>
                 <div><span class="label">Commit:</span> <a id="popup-github-link" href="#" target="_blank"><code id="popup-commit"></code></a></div>
@@ -885,7 +811,6 @@
                             <tr>
                                 <th scope="col" class="stats-select-col" title="Select/deselect all shown jobs"><input type="checkbox" id="stats-select-all" aria-label="Select all shown jobs" onchange="toggleAllVisibleStatsJobs(this.checked)"></th>
                                 <th scope="col" class="sortable" data-sort="job" onclick="handleStatsTableSort('job')">Job/Report <span class="sort-indicator">▲</span></th>
-                                <th scope="col" class="sortable" data-sort="passRate" title="Pass rate in last 14 days" onclick="handleStatsTableSort('passRate')">Pass Rate <span class="sort-indicator">▲</span></th>
                                 <th scope="col" class="sortable" data-sort="trend" title="Trend over selected time range" onclick="handleStatsTableSort('trend')">Trend <span class="sort-indicator">▲</span></th>
                                 <th scope="col" class="sortable" data-sort="median" onclick="handleStatsTableSort('median')">Median <span class="sort-indicator">▲</span></th>
                                 <th scope="col" class="sortable" data-sort="min" onclick="handleStatsTableSort('min')">Min <span class="sort-indicator">▲</span></th>
@@ -895,7 +820,7 @@
                             </tr>
                         </thead>
                         <tbody id="stats-tbody">
-                            <tr><td colspan="9" class="loading">Loading...</td></tr>
+                            <tr><td colspan="8" class="loading">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -907,7 +832,6 @@
         'use strict';
 
         // === Constants ===
-        const FAILED_STATES = ['failed', 'timed_out', 'canceled'];
         const VALID_TIME_RANGES = [0, 7, 14, 30, 60, 90, 120, 240, 365];
 
         // Stats table sorting state
@@ -923,10 +847,6 @@
         const STALE_DATA_THRESHOLD_DAYS = 3;  // Show warning if data older than 3 days (matches CI update schedule)
         const STALE_DATA_THRESHOLD_MS = STALE_DATA_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
 
-        // Pass rate tracking
-        const PASS_RATE_DAYS = 14;  // Track pass rate over last 14 days
-        const PASS_RATE_THRESHOLD = 0.9;  // Below 90% shows warning
-
         // Statistical significance
         const TREND_SIGNIFICANCE_P_VALUE = 0.05;  // p-value threshold for statistical significance
         const TREND_SIGNIFICANCE_R_SQUARED = 0.1;  // R² threshold (trend must explain >10% of variance)
@@ -941,7 +861,6 @@
         let jobFilterTimer = null;
         let timeRangeDays = DEFAULT_TIME_RANGE;
         let lineType = DEFAULT_LINE_TYPE;
-        let excludedStates = new Set(['canceled']);  // States to exclude from display (canceled hidden by default)
         let jobColors = {};
         let chartMetadata = {};
         // Custom zoom state (null = use timeRangeDays preset)
@@ -951,8 +870,6 @@
         let customYMax = null;  // seconds or null
 
         // === Helper Functions ===
-        const isFailedState = (state) => FAILED_STATES.includes(state);
-        const getRunState = (run) => run.state || 'passed';
 
         function setJuliaVersion(version) {
             selectedJuliaVersion = version;
@@ -1479,171 +1396,13 @@
             }
         });
 
-        function filterRunsByState(runs, cutoff, maxCutoff = null) {
-            return runs.filter(r => {
-                const date = new Date(r.date);
-                if (cutoff && date < cutoff) return false;
-                if (maxCutoff && date > maxCutoff) return false;
-                const runState = getRunState(r);
-                if (excludedStates.size > 0 && excludedStates.has(runState)) return false;
-                return true;
+        function filterRunsByDate(runs, cutoff, maxCutoff = null) {
+            return runs.filter(run => {
+                const date = new Date(run.date);
+                return (!cutoff || date >= cutoff) && (!maxCutoff || date <= maxCutoff);
             });
         }
 
-        // Check if a job has recent failures or timeouts
-        // Returns object with: { hasFailure, hasTimeout, failedCount, timedOutCount, totalCount, tooltipFailure, tooltipTimeout }
-        // Shows issues if:
-        // 1. There was a failure/timeout in the last 24 hours, OR
-        // 2. There was a failure/timeout in the last 3 runs AND at least one run is within PASS_RATE_DAYS
-        function hasRecentFailure(jobData) {
-            if (!jobData.recent || jobData.recent.length === 0) {
-                return { hasFailure: false, hasTimeout: false, failedCount: 0, timedOutCount: 0, totalCount: 0, tooltipFailure: '', tooltipTimeout: '' };
-            }
-
-            const now = new Date();
-            const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            const recentCutoff = new Date();
-            recentCutoff.setDate(recentCutoff.getDate() - PASS_RATE_DAYS);
-
-            // Check last 3 runs
-            const lastThreeRuns = jobData.recent.slice(0, Math.min(3, jobData.recent.length));
-
-            // First, check if the job has any runs within the recent cutoff period
-            const hasRecentRuns = lastThreeRuns.some(run => new Date(run.date) >= recentCutoff);
-            if (!hasRecentRuns) {
-                // Job hasn't run recently, don't flag as having current issues
-                return { hasFailure: false, hasTimeout: false, failedCount: 0, timedOutCount: 0, totalCount: 0, tooltipFailure: '', tooltipTimeout: '' };
-            }
-
-            let failedCount = 0;
-            let timedOutCount = 0;
-            let hasFailure = false;
-            let hasTimeout = false;
-
-            for (const run of lastThreeRuns) {
-                const state = run.state || 'passed';
-                const runDate = new Date(run.date);
-
-                // Check if this run failed
-                if (state === 'failed') {
-                    failedCount++;
-                    // Show warning if within 24h OR if this is in the last 3 runs and recent enough
-                    if (runDate >= last24h || runDate >= recentCutoff) {
-                        hasFailure = true;
-                    }
-                }
-                // Check if this run timed out
-                else if (state === 'timed_out') {
-                    timedOutCount++;
-                    // Show warning if within 24h OR if this is in the last 3 runs and recent enough
-                    if (runDate >= last24h || runDate >= recentCutoff) {
-                        hasTimeout = true;
-                    }
-                }
-            }
-
-            const tooltipFailure = hasFailure ? `Currently failing: ${failedCount}/${lastThreeRuns.length} recent runs failed` : '';
-            const tooltipTimeout = hasTimeout ? `Currently timing out: ${timedOutCount}/${lastThreeRuns.length} recent runs timed-out` : '';
-
-            // Check for breakage within recent period
-            const breakage = detectBreakage(jobData);
-            const hasBreakage = breakage && new Date(breakage.date) >= recentCutoff;
-            const tooltipBreakage = hasBreakage
-                ? `Breakage detected: ${breakage.failureCount} failures since ${new Date(breakage.date).toLocaleDateString()}\nCommit: ${breakage.commit.substring(0, 8)}\n${breakage.message.substring(0, 60)}${breakage.message.length > 60 ? '...' : ''}`
-                : '';
-
-            return { hasFailure, hasTimeout, hasBreakage, failedCount, timedOutCount, totalCount: lastThreeRuns.length, tooltipFailure, tooltipTimeout, tooltipBreakage };
-        }
-
-        /**
-         * Detect breakage points where a job transitioned from reliable passing to reliable failing.
-         *
-         * Strategy: Look for a REGIME CHANGE - a clear transition from stable passing to stable failing.
-         * This avoids false positives on flaky jobs that have intermittent failures.
-         *
-         * Algorithm:
-         * 1. Confirm currently broken: ≥80% failure rate in last 5 runs (4 of 5)
-         * 2. Scan backwards tracking consecutive passes
-         * 3. Once we find 7 consecutive passes, the last failure before that window is the breakage
-         *
-         * @param {Object} jobData - Job data with recent runs
-         * @returns {Object|null} Breakage info with { commit, date, build, message, author, failureCount } or null
-         */
-        function detectBreakage(jobData) {
-            const CURRENT_WINDOW = 5;
-            const CURRENT_THRESHOLD = 4;
-            const STABLE_WINDOW = 7;  // Need this many consecutive passes to mark stable
-
-            if (!jobData.recent || jobData.recent.length < CURRENT_WINDOW + STABLE_WINDOW) {
-                return null;
-            }
-
-            const runs = jobData.recent;
-            const isFailed = (run) => {
-                const state = getRunState(run);
-                return state === 'failed' || state === 'timed_out';
-            };
-
-            // Step 1: Check if currently broken
-            const recentRuns = runs.slice(0, CURRENT_WINDOW);
-            const recentFailures = recentRuns.filter(isFailed).length;
-            if (recentFailures < CURRENT_THRESHOLD) {
-                return null;
-            }
-
-            // Step 2: Scan backwards tracking consecutive passes
-            let consecutivePasses = 0;
-            let lastFailureIdx = -1;
-
-            for (let i = 0; i < runs.length; i++) {
-                const state = getRunState(runs[i]);
-                if (state === 'passed') {
-                    consecutivePasses++;
-                    if (consecutivePasses >= STABLE_WINDOW) {
-                        break;  // Found stable region
-                    }
-                } else {
-                    consecutivePasses = 0;
-                    if (isFailed(runs[i])) {
-                        lastFailureIdx = i;
-                    }
-                }
-            }
-
-            if (lastFailureIdx < 0 || consecutivePasses < STABLE_WINDOW) {
-                return null;
-            }
-
-            // Count failures from breakage to present
-            let failureCount = 0;
-            for (let i = 0; i <= lastFailureIdx; i++) {
-                if (isFailed(runs[i])) failureCount++;
-            }
-
-            return {
-                commit: runs[lastFailureIdx].commit,
-                date: runs[lastFailureIdx].date,
-                build: runs[lastFailureIdx].build,
-                message: runs[lastFailureIdx].message,
-                author: runs[lastFailureIdx].author,
-                failureCount: failureCount,
-                failureType: getRunState(runs[lastFailureIdx])
-            };
-        }
-
-        // Cache detected breakages for all jobs.
-
-        let jobBreakages = {};
-
-        function calculateAllBreakages() {
-            jobBreakages = {};
-            for (const [name, job] of Object.entries(data.jobs)) {
-                const breakage = detectBreakage(job);
-                if (breakage) {
-                    jobBreakages[name] = breakage;
-                }
-            }
-        }
         // URL parameter handling for shareable links
 
         // Job index mapping for URL encoding (built after data loads)
@@ -1714,19 +1473,10 @@
             } else {
                 url.searchParams.delete('l');
             }
+            // Host expansion and state filters were removed; canonicalize old shared URLs.
             url.searchParams.delete('e');
-            // Add excluded states if different from default (canceled only)
-            const defaultExcluded = new Set(['canceled']);
-            const isDefaultStates = excludedStates.size === defaultExcluded.size &&
-                [...excludedStates].every(s => defaultExcluded.has(s));
-            if (!isDefaultStates) {
-                // Encode as which states are visible (inverse of excluded)
-                const allStates = ['passed', 'failed', 'timed_out', 'canceled'];
-                const visible = allStates.filter(s => !excludedStates.has(s));
-                url.searchParams.set('st', visible.join('_'));
-            } else {
-                url.searchParams.delete('st');
-            }
+            url.searchParams.delete('st');
+
             history.replaceState(null, '', url);
             saveToLocalStorage();
         }
@@ -1801,28 +1551,6 @@
                 document.getElementById('line-type').value = l;
             }
 
-            // Apply state filter
-            const st = params.get('st');
-            if (st !== null) {
-                const allStates = ['passed', 'failed', 'timed_out', 'canceled'];
-                const visibleStates = st ? st.split('_').filter(s => allStates.includes(s)) : [];
-                excludedStates.clear();
-                for (const state of allStates) {
-                    if (!visibleStates.includes(state)) {
-                        excludedStates.add(state);
-                    }
-                }
-                // Sync checkbox UI
-                const menu = document.getElementById('state-filter-menu');
-                if (menu) {
-                    const checkboxes = menu.querySelectorAll('input[type="checkbox"]');
-                    const stateOrder = ['passed', 'failed', 'timed_out', 'canceled'];
-                    checkboxes.forEach((cb, i) => {
-                        cb.checked = !excludedStates.has(stateOrder[i]);
-                    });
-                }
-                updateStateFilterLabel();
-            }
 
             // Apply selection
             const sel = decodeSelection(params.get('s'));
@@ -1893,48 +1621,6 @@
             updateChart();
             updateURL();
         }
-
-        function toggleStateDropdown(event) {
-            event.stopPropagation();
-            const dropdown = document.getElementById('state-filter-dropdown');
-            dropdown.classList.toggle('open');
-        }
-
-        function toggleStateFilter(state, checkbox) {
-            if (excludedStates.has(state)) {
-                excludedStates.delete(state);
-            } else {
-                excludedStates.add(state);
-            }
-            updateStateFilterLabel();
-            updateChart();
-            updateStatsTable();
-            updateURL();
-        }
-
-        function updateStateFilterLabel() {
-            const label = document.getElementById('state-filter-label');
-            const allStates = ['passed', 'failed', 'timed_out', 'canceled'];
-            const visibleCount = allStates.length - excludedStates.size;
-            if (excludedStates.size === 0) {
-                label.textContent = 'All states';
-            } else if (visibleCount === 0) {
-                label.textContent = 'No states';
-            } else if (visibleCount === 1) {
-                const visible = allStates.find(s => !excludedStates.has(s));
-                const names = { passed: 'Passed', failed: 'Failed', timed_out: 'Timed out', canceled: 'Canceled' };
-                label.textContent = names[visible] + ' only';
-            } else {
-                label.textContent = `States (${visibleCount}/${allStates.length})`;
-            }
-        }
-
-        // Close the state dropdown when clicking outside it.
-        document.addEventListener('click', (event) => {
-            const dropdown = document.getElementById('state-filter-dropdown');
-            if (dropdown && !dropdown.contains(event.target)) dropdown.classList.remove('open');
-        });
-
         function updateJuliaVersionFilterUI() {
             const select = document.getElementById('julia-version');
             if (!select || !data?.jobs) return;
@@ -2073,24 +1759,16 @@
                 for (const run of jobData.recent) {
                     const date = new Date(run.date);
                     if (cutoff && date < cutoff) continue;
-                    const runState = getRunState(run);
-                    if (excludedStates.size > 0 && excludedStates.has(runState)) continue;
                     points.push({
                         x: date,
                         y: run.duration,
-                        state: runState,
-                        retry: run.retry || 0,
                         meta: {
                             job: jobName,
                             commit: run.commit,
-                            build: run.build,
                             date: run.date,
                             duration: run.duration,
                             message: run.message,
                             author: run.author,
-                            state: runState,
-                            retry: run.retry || 0,
-                            pipeline: run.pipeline || 'julia-master'
                         }
                     });
                 }
@@ -2104,148 +1782,11 @@
                 const smoothedPoints = lineType === 'raw' ? points :
                     computeMovingAverage(points, parseInt(lineType, 10));
 
-                // Check if this job has a detected breakage
-                const breakage = jobBreakages[jobName];
-                const breakageCommit = breakage ? breakage.commit : null;
-
-                // Build metadata from raw points (include breakage flag)
                 const datasetIdx = datasets.length;
-                points.forEach((pt, idx) => {
-                    chartMetadata[`${datasetIdx}-${idx}`] = {
-                        ...pt.meta,
-                        isBreakage: breakageCommit && pt.meta.commit === breakageCommit
-                    };
+                points.forEach((point, index) => {
+                    chartMetadata[datasetIdx + "-" + index] = point.meta;
                 });
-
-                // Create custom canvas for timed_out marker (⤒) at high DPI
-                const createTimedOutMarker = (fillColor, markerSize = null) => {
-                    const scale = window.devicePixelRatio || 2;
-                    // Use smaller markers on narrow screens
-                    const size = markerSize ?? (window.innerWidth <= 480 ? 7 : 10);
-                    const canvas = document.createElement('canvas');
-                    canvas.width = size * scale;
-                    canvas.height = size * scale;
-                    canvas.style.width = size + 'px';
-                    canvas.style.height = size + 'px';
-                    const ctx = canvas.getContext('2d');
-                    ctx.scale(scale, scale);
-                    ctx.strokeStyle = fillColor;
-                    ctx.fillStyle = fillColor;
-                    ctx.lineWidth = size <= 7 ? 0.8 : 1.0;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    const cx = size / 2;
-                    const cy = size / 2 + (size <= 7 ? 0.7 : 1);
-                    const barHalf = size <= 7 ? 1.0 : 1.5;
-                    const stemLen = size <= 7 ? 2.8 : 4;
-                    const arrowY = size <= 7 ? 1.8 : 2.5;
-                    // Horizontal bar at center
-                    ctx.beginPath();
-                    ctx.moveTo(cx - barHalf, cy);
-                    ctx.lineTo(cx + barHalf, cy);
-                    ctx.stroke();
-                    // Vertical line (stem) - from center down
-                    ctx.beginPath();
-                    ctx.moveTo(cx, cy);
-                    ctx.lineTo(cx, cy + stemLen);
-                    ctx.stroke();
-                    // Arrow head just below the bar
-                    ctx.beginPath();
-                    ctx.moveTo(cx - barHalf, cy + arrowY);
-                    ctx.lineTo(cx, cy);
-                    ctx.lineTo(cx + barHalf, cy + arrowY);
-                    ctx.stroke();
-                    return canvas;
-                };
-
-                // Create breakage marker (cross/X with circle around it to indicate breakage)
-                const createBreakageMarker = (fillColor, markerSize = null) => {
-                    const scale = window.devicePixelRatio || 2;
-                    const size = markerSize ?? (window.innerWidth <= 480 ? 7 : 10);
-                    const canvas = document.createElement('canvas');
-                    canvas.width = size * scale;
-                    canvas.height = size * scale;
-                    canvas.style.width = size + 'px';
-                    canvas.style.height = size + 'px';
-                    const ctx = canvas.getContext('2d');
-                    ctx.scale(scale, scale);
-
-                    const cx = size / 2;
-                    const cy = size / 2;
-                    const radius = size / 2 - 1;
-
-                    // Draw circle border to indicate breakage
-                    ctx.strokeStyle = fillColor;
-                    ctx.lineWidth = 0.8;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
-                    ctx.stroke();
-
-                    // Draw cross/X (failure marker) inside - same size as Chart.js crossRot
-                    ctx.strokeStyle = fillColor;
-                    ctx.lineWidth = 1.5;
-                    const crossSize = size * 0.25;
-                    // Draw X
-                    ctx.beginPath();
-                    ctx.moveTo(cx - crossSize, cy - crossSize);
-                    ctx.lineTo(cx + crossSize, cy + crossSize);
-                    ctx.moveTo(cx + crossSize, cy - crossSize);
-                    ctx.lineTo(cx - crossSize, cy + crossSize);
-                    ctx.stroke();
-
-                    return canvas;
-                };
-
-                const pointColors = points.map(() => color);
-
-                // Cache timeout markers per color
-                const timedOutMarkerCache = {};
-                const getTimedOutMarker = (markerColor) => {
-                    if (!timedOutMarkerCache[markerColor]) {
-                        timedOutMarkerCache[markerColor] = createTimedOutMarker(markerColor);
-                    }
-                    return timedOutMarkerCache[markerColor];
-                };
-
-                // Cache breakage markers per color
-                const breakageMarkerCache = {};
-                const getBreakageMarker = (markerColor) => {
-                    if (!breakageMarkerCache[markerColor]) {
-                        breakageMarkerCache[markerColor] = createBreakageMarker(markerColor);
-                    }
-                    return breakageMarkerCache[markerColor];
-                };
-
-                // Generate point styles based on state (with per-point colors for timeout markers)
-                const pointStyles = points.map((p, i) => {
-                    // Breakage marker takes precedence if this is the breakage commit
-                    if (breakageCommit && p.meta.commit === breakageCommit) return getBreakageMarker(pointColors[i]);
-                    if (p.state === 'timed_out') return getTimedOutMarker(pointColors[i]);
-                    if (p.state === 'failed' || p.state === 'canceled') return 'crossRot';
-                    // Use rectRot (diamond) for retry attempts to make them visually distinct
-                    if (p.retry > 0) return 'rectRot';
-                    return 'circle';
-                });
-                // Smaller points on narrow screens; larger for retries to make them visible
-                const isMobile = window.innerWidth <= 480;
-                const pointRadii = points.map(p => {
-                    // Breakage points same size as regular failed markers
-                    if (breakageCommit && p.meta.commit === breakageCommit) return isMobile ? 3.5 : 5;
-                    if (isFailedState(p.state)) return isMobile ? 3.5 : 5;
-                    if (p.retry > 0) return isMobile ? 3 : 4;  // Slightly larger for retries
-                    return isMobile ? 1.5 : 2;
-                });
-                // Add border to retry points and failed states
-                const pointBorderWidths = points.map(p => {
-                    if (isFailedState(p.state)) return isMobile ? 0.8 : 1;  // Failed markers need visible border
-                    if (p.retry > 0) return 1;
-                    return 0;
-                });
-                const pointHoverBorderWidths = points.map(p => {
-                    if (isFailedState(p.state)) return isMobile ? 1.8 : 2.2;  // Thicker on hover
-                    if (p.retry > 0) return 2;
-                    return 0;
-                });
+                const pointRadius = window.innerWidth <= 480 ? 1.5 : 2;
 
                 if (lineType === 'raw') {
                     // Single dataset with line and points
@@ -2257,14 +1798,14 @@
                         backgroundColor: color + '20',
                         fill: false,
                         tension: 0.2,
-                        pointRadius: pointRadii,
-                        pointHoverRadius: pointRadii.map(r => r * 1.2),
+                        pointRadius: pointRadius,
+                        pointHoverRadius: pointRadius * 1.2,
                         pointHitRadius: 10,
-                        pointBackgroundColor: pointColors,
-                        pointBorderColor: pointColors,
-                        pointBorderWidth: pointBorderWidths,
-                        pointHoverBorderWidth: pointHoverBorderWidths,
-                        pointStyle: pointStyles,
+                        pointBackgroundColor: color,
+                        pointBorderColor: color,
+                        pointBorderWidth: 0,
+                        pointHoverBorderWidth: 0,
+                        pointStyle: 'circle',
                         spanGaps: true,
                         clip: false,
                         yAxisID: 'y'
@@ -2293,23 +1834,20 @@
                         backgroundColor: color,
                         fill: false,
                         showLine: false,
-                        pointRadius: pointRadii,
-                        pointHoverRadius: pointRadii.map(r => r * 1.2),
+                        pointRadius: pointRadius,
+                        pointHoverRadius: pointRadius * 1.2,
                         pointHitRadius: 10,
-                        pointStyle: pointStyles,
-                        pointBorderColor: pointColors,
-                        pointBackgroundColor: pointColors,
-                        pointBorderWidth: pointBorderWidths,
-                        pointHoverBorderWidth: pointHoverBorderWidths,
+                        pointStyle: 'circle',
+                        pointBorderColor: color,
+                        pointBackgroundColor: color,
+                        pointBorderWidth: 0,
+                        pointHoverBorderWidth: 0,
                         clip: false,
                         yAxisID: 'y'
                     });
-                    // Also track metadata for points dataset (include breakage flag)
+                    // Track metadata for the raw-points dataset
                     points.forEach((pt, idx) => {
-                        chartMetadata[`${datasetIdx + 1}-${idx}`] = {
-                            ...pt.meta,
-                            isBreakage: breakageCommit && pt.meta.commit === breakageCommit
-                        };
+                        chartMetadata[(datasetIdx + 1) + "-" + idx] = pt.meta;
                     });
                 }
             }
@@ -2401,17 +1939,7 @@
                                     const meta = chartMetadata[key];
                                     if (!meta) return null;
 
-                                    // Duration dataset tooltip
-                                    const getStateDisplay = (state) => {
-                                        if (state === 'timed_out') return '⤒ timed out';
-                                        if (state === 'failed') return '❌ failed';
-                                        if (state === 'canceled') return '❌ canceled';
-                                        if (state === 'passed') return '✓ passed';
-                                        return state || '';
-                                    };
-                                    const lines = [];
-                                    if (meta.isBreakage) lines.push('⚡ Detected breakage');
-                                    lines.push(`${getStateDisplay(meta.state)} · ${formatDuration(ctx.parsed.y)}`);
+                                    const lines = [formatDuration(ctx.parsed.y)];
                                     if (meta.message) lines.push(meta.message);
                                     return lines;
                                 },
@@ -2659,31 +2187,13 @@
         function showPopup(meta) {
             document.getElementById("popup-job").innerHTML = convertEmoji(escapeHtml(meta.job));
 
-            const state = meta.state || "passed";
-            const stateEl = document.getElementById("popup-state");
-            const failed = isFailedState(state);
-            const stateIcon = failed ? "❌" : "✅";
-            const stateText = state === "timed_out" ? "timed out" : state;
-            stateEl.textContent = stateIcon + " " + stateText;
-            stateEl.style.color = failed ? "var(--color-danger-fg)" :
-                                  state === "passed" ? "var(--color-success-fg)" : "inherit";
-
-            const retryRow = document.getElementById("popup-retry-row");
-            const retryNum = meta.retry || 0;
-            if (retryNum > 0) {
-                retryRow.style.display = "";
-                document.getElementById("popup-retry").textContent = "Retry #" + retryNum;
-            } else {
-                retryRow.style.display = "none";
-            }
-
             document.getElementById("popup-duration").textContent = formatDuration(meta.duration);
             document.getElementById("popup-date").textContent = meta.date;
             document.getElementById("popup-commit").textContent = meta.commit;
             document.getElementById("popup-message").textContent = meta.message || "(no message)";
             document.getElementById("popup-author").textContent = meta.author || "(unknown)";
             document.getElementById("popup-github-link").href =
-                "https://github.com/JuliaLang/julia/commit/" + meta.commit;
+                "https://github.com/oscar-system/Oscar.jl/commit/" + meta.commit;
             document.getElementById("popup-overlay").classList.add("visible");
         }
 
@@ -2898,7 +2408,6 @@
             const baseHeaders = `
                 <th scope="col" class="stats-select-col" title="Select/deselect all shown jobs"><input type="checkbox" id="stats-select-all" aria-label="Select all shown jobs" onchange="toggleAllVisibleStatsJobs(this.checked)"></th>
                 <th scope="col" class="sortable" data-sort="job" onclick="handleStatsTableSort('job')">Job/Report <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="passRate" title="Pass rate in last 14 days" onclick="handleStatsTableSort('passRate')">Pass Rate <span class="sort-indicator">▲</span></th>
                 <th scope="col" class="sortable" data-sort="trend" title="Trend over selected time range" onclick="handleStatsTableSort('trend')">Trend <span class="sort-indicator">▲</span></th>
                 <th scope="col" class="sortable" data-sort="median" onclick="handleStatsTableSort('median')">Median <span class="sort-indicator">▲</span></th>
                 <th scope="col" class="sortable" data-sort="min" onclick="handleStatsTableSort('min')">Min <span class="sort-indicator">▲</span></th>
@@ -2918,10 +2427,9 @@
             // Update the table header
             updateStatsTableHeader();
 
-            const colSpan = 9;
             const visibleJobNames = getVisibleJobNames();
             if (visibleJobNames.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="loading">No matching jobs</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="loading">No matching jobs</td></tr>`;
                 updateSortIndicators();
                 syncStatsSelectAllCheckbox();
                 return;
@@ -2936,37 +2444,10 @@
                 const job = data.jobs[jobName];
                 if (!job) continue;
 
-                const filtered = filterRunsByState(job.recent, rangeMin, rangeMax);
+                const filtered = filterRunsByDate(job.recent, rangeMin, rangeMax);
                 if (filtered.length === 0) continue;
 
-                // Collect all runs in range for pass-rate statistics (independent of the state filter)
-                const allRunsInRange = job.recent.filter(r => {
-                    const date = new Date(r.date);
-                    return (!rangeMin || date >= rangeMin) && (!rangeMax || date <= rangeMax);
-                });
-
-                // Calculate pass rate from all runs in range (ignoring state filter)
-                let prPassed = 0, prFailed = 0, prTimedOut = 0, prCanceled = 0, prRetries = 0;
-                for (const r of allRunsInRange) {
-                    const state = r.state || 'passed';
-                    if (state === 'passed') prPassed++;
-                    else if (state === 'failed') prFailed++;
-                    else if (state === 'timed_out') prTimedOut++;
-                    else if (state === 'canceled') prCanceled++;
-                    if (r.retry > 0) prRetries++;
-                }
-                const prTotal = allRunsInRange.length;
-                const pr = prTotal > 0 ? {
-                    total: prTotal,
-                    passed: prPassed,
-                    failed: prFailed,
-                    timedOut: prTimedOut,
-                    canceled: prCanceled,
-                    retries: prRetries,
-                    rate: prPassed / prTotal
-                } : null;
-
-                // Duration stats from all visible runs (respects state filter)
+                // Duration statistics for runs in the visible date range
                 let median = null, mean = null, min = null, max = null, std = null, trend = null;
                 if (filtered.length > 0) {
                     const durations = filtered.map(r => r.duration);
@@ -2989,7 +2470,6 @@
                     max,
                     std,
                     trend,
-                    pr,
                     n: filtered.length
                 });
             }
@@ -3000,11 +2480,6 @@
                 switch (statsTableSortColumn) {
                     case 'job':
                         cmp = a.jobName.localeCompare(b.jobName);
-                        break;
-                    case 'passRate':
-                        const prA = a.pr?.rate ?? 1;
-                        const prB = b.pr?.rate ?? 1;
-                        cmp = prA - prB;
                         break;
                     case 'median':
                         cmp = a.median - b.median;
@@ -3051,21 +2526,7 @@
             // Add "All" aggregate row when multiple jobs are selected among the shown jobs
             const selectedJobStats = jobStats.filter(stat => selectedJobs.has(stat.jobName));
             if (selectedJobStats.length > 1) {
-                // Aggregate pass rate counts
-                let allPassed = 0, allFailed = 0, allTimedOut = 0, allCanceled = 0, allRetries = 0, allTotal = 0;
-                let allN = 0;
-
-                for (const stat of selectedJobStats) {
-                    if (stat.pr) {
-                        allPassed += stat.pr.passed;
-                        allFailed += stat.pr.failed;
-                        allTimedOut += stat.pr.timedOut;
-                        allCanceled += stat.pr.canceled;
-                        allRetries += stat.pr.retries || 0;
-                        allTotal += stat.pr.total;
-                    }
-                    allN += stat.n;
-                }
+                let allN = selectedJobStats.reduce((sum, stat) => sum + stat.n, 0);
 
                 // Normalize each run's duration relative to its job's median
                 // This allows meaningful aggregation across jobs with different scales
@@ -3074,7 +2535,7 @@
                     if (!stat.median || stat.median <= 0) continue;
                     const job = data.jobs[stat.jobName];
                     if (!job) continue;
-                    const filtered = filterRunsByState(job.recent, rangeMin, rangeMax);
+                    const filtered = filterRunsByDate(job.recent, rangeMin, rangeMax);
                     for (const r of filtered) {
                         // Normalize: 100% = job's median, so 110% means 10% slower than median
                         normalizedRuns.push({
@@ -3087,45 +2548,12 @@
                 // Compute aggregate trend on normalized values
                 const aggTrend = normalizedRuns.length > 0 ? computeTrend(normalizedRuns) : null;
 
-                let aggPassRateHtml = '<span class="text-muted">—</span>';
-                if (allTotal > 0) {
-                    const aggRate = allPassed / allTotal;
-                    const aggPct = Math.round(aggRate * 100);
-                    // Color: green=100%, yellow>=90%, red<90%
-                    const prColor = aggRate >= 1 ? 'var(--color-success-fg)' : (aggRate >= PASS_RATE_THRESHOLD ? 'var(--color-attention-fg)' : 'var(--color-danger-fg)');
-                    // Check if any job has recent failures or timeouts for warning icons
-                    let hasAnyRecentFailure = false;
-                    let hasAnyRecentTimeout = false;
-                    for (const stat of selectedJobStats) {
-                        const job = data.jobs[stat.jobName];
-                        if (job) {
-                            const issueInfo = hasRecentFailure(job);
-                            if (issueInfo.hasFailure) hasAnyRecentFailure = true;
-                            if (issueInfo.hasTimeout) hasAnyRecentTimeout = true;
-                            if (hasAnyRecentFailure && hasAnyRecentTimeout) break;
-                        }
-                    }
-                    // Icons: ⚠️ if any job has recent failure, ⏳ if any job has recent timeout, 🔄 if retries present
-                    let icons = '';
-                    if (hasAnyRecentFailure) icons += '⚠️';
-                    if (hasAnyRecentTimeout) icons += '⏳';
-                    if (allRetries > 0) icons += '🔄';
-                    const parts = [];
-                    if (allFailed > 0) parts.push(`${allFailed} failed`);
-                    if (allTimedOut > 0) parts.push(`${allTimedOut} timed out`);
-                    if (allCanceled > 0) parts.push(`${allCanceled} canceled`);
-                    if (allRetries > 0) parts.push(`${allRetries} retries`);
-                    const breakdown = parts.length > 0 ? parts.join(', ') : 'all passed';
-                    aggPassRateHtml = `<span style="color: ${prColor}" title="${breakdown} out of ${allTotal} total runs">${aggPct}%${icons ? ' ' + icons : ''}</span>`;
-                }
-
                 const aggRow = document.createElement('tr');
                 aggRow.className = 'aggregate-row';
                 const aggTrendResult = formatTrend(aggTrend, null, true);
                 aggRow.innerHTML = `
                     <td class="stats-select-col"></td>
                     <td>All (${selectedJobStats.length} jobs)</td>
-                    <td>${aggPassRateHtml}</td>
                     <td>${aggTrendResult.html}</td>
                     <td></td>
                     <td></td>
@@ -3137,40 +2565,7 @@
             }
 
             for (const stat of jobStats) {
-                const { jobName, color, median, mean, min, max, std, trend, pr, n } = stat;
-
-                let passRateHtml = '<span class="text-muted">—</span>';
-                if (pr && pr.total > 0) {
-                    const pct = Math.round(pr.rate * 100);
-                    // Color: green=100%, yellow>=90%, red<90%
-                    const prColor = pr.rate >= 1 ? 'var(--color-success-fg)' : (pr.rate >= PASS_RATE_THRESHOLD ? 'var(--color-attention-fg)' : 'var(--color-danger-fg)');
-                    // Check for recent failures and timeouts
-                    const job = data.jobs[jobName];
-                    const issueInfo = job ? hasRecentFailure(job) : { hasFailure: false, hasTimeout: false, hasBreakage: false, tooltipFailure: '', tooltipTimeout: '', tooltipBreakage: '' };
-                    // Icons: ⚠️ if recent failure, ⏳ if recent timeout, 🔄 if retries present
-                    let icons = '';
-                    if (issueInfo.hasFailure) icons += '⚠️';
-                    if (issueInfo.hasTimeout) icons += '⏳';
-                    if (pr.retries > 0) icons += '🔄';
-                    const parts = [];
-                    if (pr.failed > 0) parts.push(`${pr.failed} failed`);
-                    if (pr.timedOut > 0) parts.push(`${pr.timedOut} timed out`);
-                    if (pr.canceled > 0) parts.push(`${pr.canceled} canceled`);
-                    if (pr.retries > 0) parts.push(`${pr.retries} retries`);
-                    let breakdown = parts.length > 0 ? parts.join(', ') : 'all passed';
-                    if (issueInfo.hasFailure) {
-                        const breakageInfo = jobBreakages[jobName];
-                        if (breakageInfo) {
-                            breakdown += `\n${issueInfo.tooltipFailure} ⚡ broke at ${breakageInfo.commit.substring(0, 8)}`;
-                        } else {
-                            breakdown += `\n${issueInfo.tooltipFailure}`;
-                        }
-                    }
-                    if (issueInfo.hasTimeout) {
-                        breakdown += `\n${issueInfo.tooltipTimeout}`;
-                    }
-                    passRateHtml = `<span style="color: ${prColor}" title="${escapeHtml(breakdown + ' out of ' + pr.total + ' in selected range')}">${pct}%${icons ? ' ' + icons : ''}</span>`;
-                }
+                const { jobName, color, median, mean, min, max, std, trend, n } = stat;
 
                 const row = document.createElement('tr');
                 row.dataset.job = jobName;
@@ -3186,7 +2581,6 @@
                 row.innerHTML = `
                     <td class="stats-select-col"><input type="checkbox" class="stats-job-checkbox" data-job="${escapeHtml(jobName)}" ${selectedJobs.has(jobName) ? 'checked' : ''} aria-label="Show ${escapeHtml(convertEmojiText(jobName))}" onclick="event.stopPropagation()"></td>
                     <td><span class="color-dot" style="background: ${color}"></span> ${convertEmoji(escapeHtml(jobName))}</td>
-                    <td>${passRateHtml}</td>
                     ${trendCell}
                     <td class="duration">${formatDuration(median)}</td>
                     <td class="duration">${formatDuration(min)}</td>
@@ -3287,9 +2681,6 @@
             allJobs.forEach((name, i) => {
                 jobColors[name] = colors[i];
             });
-
-            // Calculate breakages for all jobs
-            calculateAllBreakages();
         }
 
         function timeAgo(dateString) {
@@ -3347,7 +2738,7 @@
                 document.getElementById("chart-loading").innerHTML =
                     "<span class=\"error\">Failed to load data</span>" + retryButton;
                 document.getElementById("stats-tbody").innerHTML =
-                    "<tr><td colspan=\"9\" class=\"error\">Failed to load data. " + retryButton + "</td></tr>";
+                    "<tr><td colspan=\"8\" class=\"error\">Failed to load data. " + retryButton + "</td></tr>";
             }
         }
 
