@@ -1,34 +1,36 @@
 # OSCAR Timing Dashboard
 
-This repository provides a web dashboard which collects,
-visualizes, and compares timing information from the OSCAR benchmark
-infrastructure.
+A focused static dashboard for visualizing OSCAR benchmark timings.
 
-## Live Dashboard
+## Live dashboard
 
-Visit: **https://speed.oscar-system.org**
+<https://speed.oscar-system.org>
 
-## How to run locally
+## Run locally
 
-From the repository root, execute
+From the repository root, run:
 
 ```bash
 python3 -m http.server
 ```
 
-and open the link shown in the terminal.
+Open the URL shown in the terminal. Opening `index.html` directly does not work
+because browsers block its JSON request from a `file:` URL.
 
-## Data Pipeline
+## Data pipeline
 
-A dedicated server (`build-bench`) periodically (approximately every
-three hours) fetches the latest changes from the OSCAR repository. If
-new commits are available, it benchmarks them one at a time in
-chronological order.
+A dedicated benchmark server periodically checks OSCAR for new commits and
+benchmarks them in chronological order. It writes `data/timing_summary.json`
+and commits that file here; this repository does not fetch benchmark data.
 
-The benchmarking process produces timing data, which are committed to
-this repository. Since the dashboard is hosted as a GitHub Pages site,
-pushing the updated data automatically updates the website.
+Each data update adds its source CSV under `data/raw/` and regenerates
+`data/timing_summary.json`. The raw files are retained as producer inputs and
+as the reproducible archive behind the generated summary.
+
+Pushing to `main` deploys only the dashboard, favicon, domain configuration,
+and summary JSON to GitHub Pages. The raw benchmark exports remain in Git but
+are intentionally excluded from the public Pages artifact.
 
 ## License
 
-MIT
+[MIT](LICENSE)

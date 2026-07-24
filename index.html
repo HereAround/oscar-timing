@@ -8,9 +8,9 @@
     <title>Oscar Timing</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="apple-touch-icon" href="favicon.svg">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- HTML decodes &amp; to the query-string separator before requesting the font. -->
@@ -25,18 +25,12 @@
             --color-border-muted: #d8dee4;
             --color-fg-default: #1f2328;
             --color-fg-muted: #656d76;
-            --color-fg-subtle: #6e7781;
             --color-accent-fg: #0969da;
             --color-accent-emphasis: #0969da;
             --color-accent-subtle: rgba(9,105,218,0.15);
             --color-success-fg: #1a7f37;
-            --color-success-subtle: rgba(74,194,107,0.15);
             --color-danger-fg: #d1242f;
             --color-danger-subtle: rgba(255,129,130,0.15);
-            --color-attention-fg: #9a6700;
-            --color-attention-subtle: rgba(212,167,44,0.4);
-            --color-attention-emphasis: #bf8700;
-            --color-neutral-subtle: rgba(175,184,193,0.1);
             --color-btn-bg: #f6f8fa;
             --color-btn-border: rgba(31,35,40,0.15);
             --color-btn-hover-bg: #f3f4f6;
@@ -57,17 +51,11 @@
                 --color-border-muted: #21262d;
                 --color-fg-default: #e6edf3;
                 --color-fg-muted: #8b949e;
-                --color-fg-subtle: #6e7681;
                 --color-accent-fg: #58a6ff;
                 --color-accent-emphasis: #1f6feb;
                 --color-success-fg: #3fb950;
-                --color-success-subtle: rgba(46,160,67,1.0);
                 --color-danger-fg: #f85149;
                 --color-danger-subtle: rgba(248,81,73,1.0);
-                --color-attention-fg: #d29922;
-                --color-attention-subtle: rgba(210,153,34,0.5);
-                --color-attention-emphasis: #f0b429;
-                --color-neutral-subtle: rgba(110,118,129,1.0);
                 --color-btn-bg: #21262d;
                 --color-btn-border: rgba(240,246,252,0.1);
                 --color-btn-hover-bg: #30363d;
@@ -237,7 +225,7 @@
             background: var(--color-canvas-default);
         }
         .chart-container {
-            flex: 1;
+            flex: 1 1 0;
             padding: 12px;
             min-height: 0;
             min-width: 0;
@@ -262,7 +250,7 @@
         .stats-wrapper {
             display: flex;
             flex-direction: column;
-            flex-shrink: 0;
+            flex: 1 1 0;
             min-height: 50px;
             max-height: 70vh;
         }
@@ -557,9 +545,6 @@
                 min-height: 32px;
             }
             .toolbar .updated { font-size: 9px; }
-            #build-commit {
-                display: none;
-            }
 
             .content {
                 min-height: 350px;
@@ -703,7 +688,6 @@
             vertical-align: middle;
             cursor: help;
         }
-        .aggregate-row { font-weight: 600; border-bottom: 2px solid var(--color-border-default); }
     </style>
 </head>
 <body>
@@ -803,7 +787,7 @@
                     <canvas id="timing-chart" role="img" aria-label="CI timing chart"></canvas>
                 </div>
             </div>
-            <div class="stats-wrapper" id="stats-wrapper" style="height: 150px;">
+            <div class="stats-wrapper" id="stats-wrapper">
                 <div class="resize-handle" id="resize-handle" role="separator" aria-orientation="horizontal" aria-label="Resize stats panel"></div>
                 <div class="stats-bar">
                     <table role="table" aria-label="Job statistics">
@@ -847,9 +831,6 @@
         const STALE_DATA_THRESHOLD_DAYS = 3;  // Show warning if data older than 3 days (matches CI update schedule)
         const STALE_DATA_THRESHOLD_MS = STALE_DATA_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
 
-        // Statistical significance
-        const TREND_SIGNIFICANCE_P_VALUE = 0.05;  // p-value threshold for statistical significance
-        const TREND_SIGNIFICANCE_R_SQUARED = 0.1;  // R² threshold (trend must explain >10% of variance)
         const TREND_MIN_POINTS = 3;  // Minimum data points required for trend analysis
 
         // === State ===
@@ -862,7 +843,8 @@
         let timeRangeDays = DEFAULT_TIME_RANGE;
         let lineType = DEFAULT_LINE_TYPE;
         let jobColors = {};
-        let chartMetadata = {};
+        let jobInfo = new Map();
+        const statsCache = new Map();
         // Custom zoom state (null = use timeRangeDays preset)
         let customXMin = null;  // timestamp or null
         let customXMax = null;  // timestamp or null
@@ -896,6 +878,7 @@
             updateURL();
             requestAnimationFrame(() => {
                 updateChart();
+                updateStatsTable();
             });
         }
 
@@ -991,9 +974,6 @@
             return result;
         }
 
-        function isDefaultSelectedJob(name) {
-            return !convertEmojiText(name).toLowerCase().includes('test 1.12 short');
-        }
 
         // Escape HTML special characters for safe insertion into attributes
         function escapeHtml(text) {
@@ -1029,8 +1009,9 @@
         function formatDuration(seconds) {
             if (seconds == null) return '<span class="text-muted">—</span>';
             if (seconds < 60) return `${seconds.toFixed(1)}s`;
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.round(seconds % 60);
+            const rounded = Math.round(seconds);
+            const mins = Math.floor(rounded / 60);
+            const secs = rounded % 60;
             if (mins < 60) {
                 return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
             }
@@ -1039,214 +1020,45 @@
             return remainMins > 0 ? `${hours}h ${remainMins}m` : `${hours}h`;
         }
 
-        /**
-         * Standard normal cumulative distribution function approximation.
-         * Uses Abramowitz and Stegun's polynomial approximation.
-         * @param {number} z - Z-score value
-         * @returns {number} Cumulative probability P(Z ≤ z)
-         */
-        function normalCDF(z) {
-            const a1 =  0.254829592;
-            const a2 = -0.284496736;
-            const a3 =  1.421413741;
-            const a4 = -1.453152027;
-            const a5 =  1.061405429;
-            const p  =  0.3275911;
-
-            const sign = z < 0 ? -1 : 1;
-            z = Math.abs(z) / Math.sqrt(2);
-
-            const t = 1.0 / (1.0 + p * z);
-            const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-z * z);
-
-            return 0.5 * (1.0 + sign * y);
-        }
-
-        /**
-         * Compute trend using linear regression with statistical significance testing.
-         * Uses t-distribution for p-value calculation and requires R² > 0.1 for significance.
-         * @param {Array<Object>} runs - Array of run objects with duration and date properties
-         * @returns {Object|null} Trend analysis object with slope, pValue, rSquared, percentChange, etc., or null if insufficient data
-         */
+        /** Compute a centered least-squares trend without claiming statistical significance. */
         function computeTrend(runs) {
             if (runs.length < TREND_MIN_POINTS) return null;
-
-            // Convert to numeric: x = timestamp (days), y = duration (seconds)
-            const points = runs.map(r => ({
-                x: new Date(r.date).getTime() / (1000 * 60 * 60 * 24), // days since epoch
-                y: r.duration
+            const points = runs.map(run => ({
+                x: Date.parse(run.date) / 86400000,
+                y: run.duration
             }));
-
             const n = points.length;
-            const sumX = points.reduce((s, p) => s + p.x, 0);
-            const sumY = points.reduce((s, p) => s + p.y, 0);
-            const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
-            const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
-
-            const meanX = sumX / n;
-            const meanY = sumY / n;
-
-            // Slope and intercept
-            const denom = sumX2 - n * meanX * meanX;
-            if (Math.abs(denom) < 1e-10) return null;
-
-            const slope = (sumXY - n * meanX * meanY) / denom;
-
-            // Standard error of slope for t-test
-            const yPred = points.map(p => meanY + slope * (p.x - meanX));
-            const ssRes = points.reduce((s, p, i) => s + (p.y - yPred[i]) ** 2, 0);
-            const ssTot = points.reduce((s, p) => s + (p.y - meanY) ** 2, 0);
-
-            const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
-
-            // Standard error of slope
-            const mse = ssRes / (n - 2);
-            const seSlope = Math.sqrt(mse / (sumX2 - n * meanX * meanX));
-
-            // t-statistic
-            const tStat = seSlope > 0 ? Math.abs(slope) / seSlope : 0;
-
-            // Approximate p-value using t-distribution (two-tailed)
-            // Using approximation for degrees of freedom = n - 2
-            const df = n - 2;
-            const pValue = tDistributionPValue(tStat, df);
-
-            // Calculate percentage change over the time range
-            const minX = Math.min(...points.map(p => p.x));
-            const maxX = Math.max(...points.map(p => p.x));
+            const meanX = points.reduce((sum, point) => sum + point.x, 0) / n;
+            const meanY = points.reduce((sum, point) => sum + point.y, 0) / n;
+            const denominator = points.reduce((sum, point) => sum + (point.x - meanX) ** 2, 0);
+            if (denominator === 0) return null;
+            const slope = points.reduce(
+                (sum, point) => sum + (point.x - meanX) * (point.y - meanY), 0
+            ) / denominator;
             const intercept = meanY - slope * meanX;
+            const residual = points.reduce(
+                (sum, point) => sum + (point.y - (intercept + slope * point.x)) ** 2, 0
+            );
+            const total = points.reduce((sum, point) => sum + (point.y - meanY) ** 2, 0);
+            const rSquared = total > 0 ? Math.max(0, 1 - residual / total) : 0;
+            const minX = Math.min(...points.map(point => point.x));
+            const maxX = Math.max(...points.map(point => point.x));
             const startValue = intercept + slope * minX;
             const endValue = intercept + slope * maxX;
-            const percentChange = startValue > 0 ? ((endValue - startValue) / startValue) * 100 : 0;
-            const absoluteDelta = endValue - startValue;  // Total change in seconds
-
-            // Require both statistical significance AND meaningful effect size
-            // R² > 0.1 means the trend explains at least 10% of variance
-            const isSignificant = pValue < TREND_SIGNIFICANCE_P_VALUE && rSquared > TREND_SIGNIFICANCE_R_SQUARED;
-
+            const percentChange = startValue > 0 ? (endValue - startValue) / startValue * 100 : 0;
             return {
-                slope,           // seconds per day
-                slopePerDay: slope,
-                pValue,
-                rSquared,
-                significant: isSignificant,
-                direction: slope > 0 ? 'up' : slope < 0 ? 'down' : 'flat',
-                percentChange,
-                absoluteDelta,
-                intercept,       // y-intercept for regression line
-                minX,            // earliest time (days since epoch)
-                maxX,            // latest time (days since epoch)
-                n
+                slope, intercept, rSquared, minX, maxX, n, percentChange,
+                absoluteDelta: endValue - startValue,
+                meaningful: Math.abs(percentChange) >= 1 && rSquared >= 0.1
             };
         }
 
-        // Approximate two-tailed p-value for t-distribution
-        function tDistributionPValue(t, df) {
-            // For very small t, not significant
-            if (Math.abs(t) < 0.001) return 1.0;
-
-            // Use normal approximation for large df
-            if (df >= 30) {
-                return 2 * (1 - normalCDF(Math.abs(t)));
-            }
-
-            // For smaller df, use the beta function relationship:
-            // p-value = I(df/(df+t²), df/2, 1/2) where I is the regularized incomplete beta
-            // Approximation using Student's t-distribution properties
-            const x = df / (df + t * t);
-
-            // Continued fraction approximation for incomplete beta
-            // This is more accurate for small df
-            const a = df / 2;
-            const b = 0.5;
-
-            // Use series expansion approximation
-            let betaI;
-            if (x < (a + 1) / (a + b + 2)) {
-                betaI = betaIncomplete(x, a, b);
-            } else {
-                betaI = 1 - betaIncomplete(1 - x, b, a);
-            }
-
-            return Math.min(1, Math.max(0, betaI));
-        }
-
-        // Regularized incomplete beta function approximation
-        function betaIncomplete(x, a, b) {
-            if (x <= 0) return 0;
-            if (x >= 1) return 1;
-
-            // Use series expansion for small x
-            const lnBeta = gammaLn(a) + gammaLn(b) - gammaLn(a + b);
-            const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lnBeta) / a;
-
-            // Lentz's algorithm for continued fraction
-            const maxIter = 100;
-            const eps = 1e-10;
-
-            let f = 1, c = 1, d = 0;
-            for (let m = 0; m <= maxIter; m++) {
-                const m2 = 2 * m;
-
-                // Even step
-                let aa = (m === 0) ? 1 : (m * (b - m) * x) / ((a + m2 - 1) * (a + m2));
-                d = 1 + aa * d;
-                if (Math.abs(d) < 1e-30) d = 1e-30;
-                c = 1 + aa / c;
-                if (Math.abs(c) < 1e-30) c = 1e-30;
-                d = 1 / d;
-                f *= d * c;
-
-                // Odd step
-                aa = -((a + m) * (a + b + m) * x) / ((a + m2) * (a + m2 + 1));
-                d = 1 + aa * d;
-                if (Math.abs(d) < 1e-30) d = 1e-30;
-                c = 1 + aa / c;
-                if (Math.abs(c) < 1e-30) c = 1e-30;
-                d = 1 / d;
-                const delta = d * c;
-                f *= delta;
-
-                if (Math.abs(delta - 1) < eps) break;
-            }
-
-            return front * f;
-        }
-
-        // Log gamma function approximation (Lanczos)
-        function gammaLn(x) {
-            const g = 7;
-            const c = [
-                0.99999999999980993,
-                676.5203681218851,
-                -1259.1392167224028,
-                771.32342877765313,
-                -176.61502916214059,
-                12.507343278686905,
-                -0.13857109526572012,
-                9.9843695780195716e-6,
-                1.5056327351493116e-7
-            ];
-
-            if (x < 0.5) {
-                return Math.log(Math.PI / Math.sin(Math.PI * x)) - gammaLn(1 - x);
-            }
-
-            x -= 1;
-            let sum = c[0];
-            for (let i = 1; i < g + 2; i++) {
-                sum += c[i] / (x + i);
-            }
-            const t = x + g + 0.5;
-            return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(sum);
-        }
-
-        function formatTrend(trend, lineColor = null, percentageMode = false, yAxisID = 'y') {
+        function formatTrend(trend, lineColor = null, percentageMode = false) {
             if (!trend || trend.n < TREND_MIN_POINTS) {
                 return { html: '<span class="text-muted" title="Not enough data points">—</span>', trendData: null };
             }
 
-            const { slope, pValue, significant, rSquared, percentChange, absoluteDelta } = trend;
+            const { slope, meaningful, rSquared, percentChange, absoluteDelta } = trend;
             const absSlope = Math.abs(slope);
 
             // Convert slope to human-readable format (per day)
@@ -1282,7 +1094,7 @@
 
             // Direction arrow and color
             let arrow, color;
-            if (!significant) {
+            if (!meaningful) {
                 arrow = '→';
                 color = 'var(--color-fg-muted)';
             } else if (slope > 0) {
@@ -1293,14 +1105,10 @@
                 color = 'var(--color-success-fg)'; // Getting faster is good
             }
 
-            // Confidence indicator
-            const confidence = significant ? (pValue < 0.01 ? '★★' : '★') : '';
-            const pText = pValue < 0.001 ? '<0.001' : pValue.toFixed(3);
-            const title = percentageMode
-                ? `${slopeText} (${pctText}, ${deltaText} over period)\np-value: ${pText}\nR²: ${(rSquared * 100).toFixed(1)}%\n${significant ? 'Statistically significant' : 'Not significant'}`
-                : `${slope > 0 ? '+' : ''}${slopeText} (${pctText}, ${deltaText} over period)\np-value: ${pText}\nR²: ${(rSquared * 100).toFixed(1)}%\n${significant ? 'Statistically significant' : 'Not significant'}`;
-
-            const displayText = significant ? `${pctText}` : 'flat';
+            const title = `${slopeText} (${pctText}, ${deltaText} over period)
+R²: ${(rSquared * 100).toFixed(1)}%
+${meaningful ? 'Meaningful trend' : 'Below the display threshold'}`;
+            const displayText = meaningful ? pctText : 'flat';
 
             // Encode trend data for hover handlers (include line color and axis)
             const trendData = JSON.stringify({
@@ -1308,12 +1116,11 @@
                 intercept: trend.intercept,
                 minX: trend.minX,
                 maxX: trend.maxX,
-                lineColor: lineColor || 'rgba(128, 128, 128, 0.8)',
-                yAxisID: yAxisID
+                lineColor: lineColor || 'rgba(128, 128, 128, 0.8)'
             }).replace(/'/g, '&#39;');
 
             // Return content designed to be placed in a td with class="trend-cell"
-            return { html: `<span style="color: ${color}" title="${title}">${arrow} ${displayText} ${confidence}</span>`, trendData };
+            return { html: `<span style="color: ${color}" title="${title}">${arrow} ${displayText}</span>`, trendData };
         }
 
         // Regression line dataset management
@@ -1322,7 +1129,7 @@
         function showRegressionLine(trendData, lineColor = 'rgba(128, 128, 128, 0.7)') {
             if (!chart || !trendData) return;
 
-            const { slope, intercept, minX, maxX, yAxisID } = trendData;
+            const { slope, intercept, minX, maxX } = trendData;
 
             // Convert days since epoch back to milliseconds
             const msPerDay = 1000 * 60 * 60 * 24;
@@ -1344,8 +1151,7 @@
                 fill: false,
                 pointRadius: 0,
                 pointHoverRadius: 0,
-                tension: 0,
-                yAxisID: yAxisID || 'y',
+                tension: 0 || 'y',
                 order: -1  // Draw on top
             };
 
@@ -1406,30 +1212,24 @@
         // URL parameter handling for shareable links
 
         // Job index mapping for URL encoding (built after data loads)
-        let jobIndexMap = {};  // name -> index
         let jobNameList = [];  // index -> name
 
         function buildJobIndex() {
             jobNameList = Object.keys(data.jobs).sort();
-            jobIndexMap = {};
-            jobNameList.forEach((name, i) => jobIndexMap[name] = i);
         }
 
-        /** Encode the selected jobs as indices in the sorted job list. */
+        /** Encode names so links remain valid when jobs are added or reordered. */
         function encodeSelection() {
-            const indices = [...selectedJobs]
-                .map(name => jobIndexMap[name])
-                .filter(index => index !== undefined)
-                .sort((a, b) => a - b);
-            return indices.length > 0 ? `i${indices.join("_")}` : "";
+            return 'n' + [...selectedJobs].sort().map(encodeURIComponent).join('!');
         }
 
         function decodeSelection(param) {
-            if (!param?.startsWith("i")) return null;
-            const indices = param.slice(1).split("_")
-                .map(Number)
-                .filter(Number.isInteger);
-            return indices.length > 0 ? { indices } : null;
+            if (!param?.startsWith('n')) return null;
+            try {
+                return { names: param.slice(1) ? param.slice(1).split('!').map(decodeURIComponent) : [] };
+            } catch {
+                return null;
+            }
         }
 
         function updateURL() {
@@ -1437,17 +1237,13 @@
             const search = jobFilterText.trim();
             if (search) {
                 url.searchParams.set('q', search);
-                url.searchParams.delete('s');
             } else {
                 url.searchParams.delete('q');
-
-                const encoded = encodeSelection();
-                if (encoded) {
-                    url.searchParams.set('s', encoded);
-                } else {
-                    url.searchParams.delete('s');
-                }
             }
+            url.searchParams.set('s', encodeSelection());
+
+            if (selectedJuliaVersion !== 'all') url.searchParams.set('v', selectedJuliaVersion);
+            else url.searchParams.delete('v');
 
             // Add time range if not default (and not custom zoom)
             if (customXMin === null && timeRangeDays !== DEFAULT_TIME_RANGE) {
@@ -1512,6 +1308,12 @@
                 if (clearButton) clearButton.style.display = q ? 'block' : 'none';
             }
 
+            const version = params.get('v');
+            if (version && document.querySelector(`#julia-version option[value="${CSS.escape(version)}"]`)) {
+                selectedJuliaVersion = version;
+                document.getElementById('julia-version').value = version;
+            }
+
             // Apply time range
             const t = params.get('t');
             if (t !== null) {
@@ -1557,10 +1359,10 @@
             if (!sel) return false;
 
             selectedJobs.clear();
-            for (const idx of sel.indices) {
-                if (jobNameList[idx]) selectedJobs.add(jobNameList[idx]);
+            for (const name of sel.names) {
+                if (data.jobs[name]) selectedJobs.add(name);
             }
-            return sel.indices.length > 0;
+            return true;
         }
 
 
@@ -1687,48 +1489,16 @@
          * @returns {Array<Object>} Smoothed data points resampled at even intervals
          */
         function computeMovingAverage(points, windowDays) {
-            if (points.length === 0) return [];
-
-            // Gaussian window: use windowDays as ~3σ (99.7% of weight within window)
-            const sigma = windowDays / 3;
-            const sigmaDays = sigma;
-            const windowMs = windowDays * 24 * 60 * 60 * 1000;
-
-            // Determine x domain
-            const minX = Math.min(...points.map(p => p.x.getTime()));
-            const maxX = Math.max(...points.map(p => p.x.getTime()));
-            const rangeMs = maxX - minX;
-
-            // Resample at ~100 evenly spaced points (or fewer if range is small)
-            const numSamples = Math.min(100, Math.max(2, Math.ceil(rangeMs / (24 * 60 * 60 * 1000))));
-            const stepMs = rangeMs / (numSamples - 1);
-
+            if (points.length < 2) return points.map(point => ({ x: point.x, y: point.y }));
+            const sorted = [...points].sort((a, b) => a.x - b.x);
+            const windowMs = windowDays * 86400000;
             const result = [];
-            for (let i = 0; i < numSamples; i++) {
-                const centerDate = minX + i * stepMs;
-                const windowStart = centerDate - windowMs / 2;
-                const windowEnd = centerDate + windowMs / 2;
-
-                let weightedSum = 0;
-                let totalWeight = 0;
-
-                for (const pt of points) {
-                    const t = pt.x.getTime();
-                    if (t >= windowStart && t <= windowEnd) {
-                        const distanceMs = t - centerDate;
-                        const distanceDays = distanceMs / (24 * 60 * 60 * 1000);
-                        const weight = Math.exp(-(distanceDays * distanceDays) / (2 * sigmaDays * sigmaDays));
-                        weightedSum += pt.y * weight;
-                        totalWeight += weight;
-                    }
-                }
-
-                if (totalWeight > 0) {
-                    result.push({
-                        x: new Date(centerDate),
-                        y: weightedSum / totalWeight
-                    });
-                }
+            let first = 0;
+            let sum = 0;
+            for (let last = 0; last < sorted.length; last++) {
+                sum += sorted[last].y;
+                while (sorted[last].x - sorted[first].x > windowMs) sum -= sorted[first++].y;
+                result.push({ x: sorted[last].x, y: sum / (last - first + 1) });
             }
             return result;
         }
@@ -1740,13 +1510,11 @@
                 currentTrendCell = null;
                 if (chart) chart.destroy();
                 chart = null;
-                chartMetadata = {};
                 return;
             }
 
             // Build datasets and metadata
             const datasets = [];
-            chartMetadata = {};
             const cutoff = getTimeRangeCutoff();
 
             for (const jobName of selectedArray) {
@@ -1782,17 +1550,13 @@
                 const smoothedPoints = lineType === 'raw' ? points :
                     computeMovingAverage(points, parseInt(lineType, 10));
 
-                const datasetIdx = datasets.length;
-                points.forEach((point, index) => {
-                    chartMetadata[datasetIdx + "-" + index] = point.meta;
-                });
                 const pointRadius = window.innerWidth <= 480 ? 1.5 : 2;
 
                 if (lineType === 'raw') {
                     // Single dataset with line and points
                     datasets.push({
                         label: jobName,
-                        data: points.map(p => ({ x: p.x, y: p.y })),
+                        data: points,
                         borderColor: color,
                         borderWidth: 1.5,
                         backgroundColor: color + '20',
@@ -1807,8 +1571,7 @@
                         pointHoverBorderWidth: 0,
                         pointStyle: 'circle',
                         spanGaps: true,
-                        clip: false,
-                        yAxisID: 'y'
+                        clip: false
                     });
                 } else {
                     // Two datasets: smoothed line + raw points
@@ -1823,13 +1586,12 @@
                         tension: 0.4,
                         pointRadius: 0,
                         pointHoverRadius: 0,
-                        spanGaps: true,
-                        yAxisID: 'y'
+                        spanGaps: true
                     });
                     // Points dataset (raw values, no line)
                     datasets.push({
                         label: jobName + ' (points)',
-                        data: points.map(p => ({ x: p.x, y: p.y })),
+                        data: points,
                         borderColor: color,
                         backgroundColor: color,
                         fill: false,
@@ -1842,21 +1604,14 @@
                         pointBackgroundColor: color,
                         pointBorderWidth: 0,
                         pointHoverBorderWidth: 0,
-                        clip: false,
-                        yAxisID: 'y'
-                    });
-                    // Track metadata for the raw-points dataset
-                    points.forEach((pt, idx) => {
-                        chartMetadata[(datasetIdx + 1) + "-" + idx] = pt.meta;
+                        clip: false
                     });
                 }
             }
 
             hideRegressionLine();
             currentTrendCell = null;
-            if (chart) chart.destroy();
-            chart = null;
-            highlightActive = false;  // Reset highlight state when chart is recreated
+            highlightActive = false;
 
             const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const gridColor = isDark ? '#30363d' : '#d0d7de';
@@ -1872,6 +1627,15 @@
                 xMin = xMax - timeRangeDays * 24 * 60 * 60 * 1000;
             }
             // For "All time" (timeRangeDays === 0), leave undefined to auto-scale
+            if (chart) {
+                chart.data.datasets = datasets;
+                chart.options.scales.x.min = xMin;
+                chart.options.scales.x.max = xMax;
+                chart.options.scales.y.min = customYMin ?? undefined;
+                chart.options.scales.y.max = customYMax ?? undefined;
+                chart.update('none');
+                return;
+            }
 
             const ctx = document.getElementById('timing-chart').getContext('2d');
             chart = new Chart(ctx, {
@@ -1935,8 +1699,7 @@
                                 label: (ctx) => {
                                     // Only show details for point datasets (pointRadius > 0)
                                     if (ctx.dataset.pointRadius === 0) return null;
-                                    const key = `${ctx.datasetIndex}-${ctx.dataIndex}`;
-                                    const meta = chartMetadata[key];
+                                    const meta = ctx.raw?.meta;
                                     if (!meta) return null;
 
                                     const lines = [formatDuration(ctx.parsed.y)];
@@ -2163,16 +1926,14 @@
                     onClick: (evt, elements) => {
                         if (elements.length > 0) {
                             const el = elements[0];
-                            const key = `${el.datasetIndex}-${el.index}`;
-                            const meta = chartMetadata[key];
+                            const meta = chart.data.datasets[el.datasetIndex].data[el.index]?.meta;
                             if (meta) showPopup(meta);
                         }
                     },
                     onHover: (evt, elements) => {
                         if (elements.length > 0) {
                             const el = elements[0];
-                            const key = `${el.datasetIndex}-${el.index}`;
-                            const meta = chartMetadata[key];
+                            const meta = chart.data.datasets[el.datasetIndex].data[el.index]?.meta;
                             if (meta && meta.job) {
                                 highlightStatsRow(meta.job);
                             }
@@ -2337,6 +2098,7 @@
                 e.preventDefault();
                 startY = e.clientY;
                 startHeight = wrapper.offsetHeight;
+                wrapper.style.flex = '0 0 auto';
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
                 document.body.style.cursor = 'ns-resize';
@@ -2356,26 +2118,6 @@
                 document.body.style.userSelect = '';
             }
 
-            // Touch support
-            handle.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
-                startY = touch.clientY;
-                startHeight = wrapper.offsetHeight;
-                document.addEventListener('touchmove', onTouchMove);
-                document.addEventListener('touchend', onTouchEnd);
-            });
-
-            function onTouchMove(e) {
-                const touch = e.touches[0];
-                const delta = startY - touch.clientY;
-                const newHeight = Math.max(50, Math.min(window.innerHeight * 0.7, startHeight + delta));
-                wrapper.style.height = newHeight + 'px';
-            }
-
-            function onTouchEnd() {
-                document.removeEventListener('touchmove', onTouchMove);
-                document.removeEventListener('touchend', onTouchEnd);
-            }
         })();
 
         // Close popup on Escape
@@ -2400,32 +2142,10 @@
             document.getElementById('shortcuts-overlay').classList.toggle('visible');
         }
 
-        // Update the stats table header
-        function updateStatsTableHeader() {
-            const thead = document.getElementById('stats-thead');
-            if (!thead) return;
-
-            const baseHeaders = `
-                <th scope="col" class="stats-select-col" title="Select/deselect all shown jobs"><input type="checkbox" id="stats-select-all" aria-label="Select all shown jobs" onchange="toggleAllVisibleStatsJobs(this.checked)"></th>
-                <th scope="col" class="sortable" data-sort="job" onclick="handleStatsTableSort('job')">Job/Report <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="trend" title="Trend over selected time range" onclick="handleStatsTableSort('trend')">Trend <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="median" onclick="handleStatsTableSort('median')">Median <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="min" onclick="handleStatsTableSort('min')">Min <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="max" onclick="handleStatsTableSort('max')">Max <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="std" onclick="handleStatsTableSort('std')">σ <span class="sort-indicator">▲</span></th>
-                <th scope="col" class="sortable" data-sort="n" onclick="handleStatsTableSort('n')">n <span class="sort-indicator">▲</span></th>
-            `;
-
-            thead.innerHTML = `<tr>${baseHeaders}</tr>`;
-            updateSortIndicators();
-        }
-
         function updateStatsTable() {
             const tbody = document.getElementById('stats-tbody');
             tbody.innerHTML = '';
 
-            // Update the table header
-            updateStatsTableHeader();
 
             const visibleJobNames = getVisibleJobNames();
             if (visibleJobNames.length === 0) {
@@ -2444,6 +2164,12 @@
                 const job = data.jobs[jobName];
                 if (!job) continue;
 
+                const cacheKey = `${jobName}\0${rangeMin?.getTime() ?? ''}\0${rangeMax?.getTime() ?? ''}`;
+                const cached = statsCache.get(cacheKey);
+                if (cached) {
+                    jobStats.push(cached);
+                    continue;
+                }
                 const filtered = filterRunsByDate(job.recent, rangeMin, rangeMax);
                 if (filtered.length === 0) continue;
 
@@ -2452,7 +2178,8 @@
                 if (filtered.length > 0) {
                     const durations = filtered.map(r => r.duration);
                     const sorted = [...durations].sort((a, b) => a - b);
-                    median = sorted[Math.floor(sorted.length / 2)];
+                    const middle = Math.floor(sorted.length / 2);
+                    median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
                     mean = durations.reduce((a, b) => a + b, 0) / durations.length;
                     min = Math.min(...durations);
                     max = Math.max(...durations);
@@ -2461,7 +2188,7 @@
                     trend = computeTrend(filtered);
                 }
 
-                jobStats.push({
+                const stats = {
                     jobName,
                     color: jobColors[jobName],
                     median,
@@ -2471,7 +2198,9 @@
                     std,
                     trend,
                     n: filtered.length
-                });
+                };
+                statsCache.set(cacheKey, stats);
+                jobStats.push(stats);
             }
 
             // Sort based on current sort column
@@ -2484,9 +2213,6 @@
                     case 'median':
                         cmp = a.median - b.median;
                         break;
-                    case 'mean':
-                        cmp = a.mean - b.mean;
-                        break;
                     case 'min':
                         cmp = a.min - b.min;
                         break;
@@ -2497,10 +2223,10 @@
                         cmp = a.std - b.std;
                         break;
                     case 'trend':
-                        // Sort by: significant positive (worst) → flat → significant negative (best)
-                        // Tier: 1 = significant positive, 0 = flat/not significant, -1 = significant negative
+                        // Sort by: meaningful positive (worst) → flat → meaningful negative (best)
+                        // Tier: 1 = meaningful positive, 0 = flat/small, -1 = meaningful negative
                         const getTrendTier = (t) => {
-                            if (!t || !t.significant) return 0;  // flat
+                            if (!t || !t.meaningful) return 0;  // flat
                             return t.percentChange > 0 ? 1 : -1;
                         };
                         const tierA = getTrendTier(a.trend);
@@ -2523,46 +2249,6 @@
 
             // Render rows
 
-            // Add "All" aggregate row when multiple jobs are selected among the shown jobs
-            const selectedJobStats = jobStats.filter(stat => selectedJobs.has(stat.jobName));
-            if (selectedJobStats.length > 1) {
-                let allN = selectedJobStats.reduce((sum, stat) => sum + stat.n, 0);
-
-                // Normalize each run's duration relative to its job's median
-                // This allows meaningful aggregation across jobs with different scales
-                const normalizedRuns = [];
-                for (const stat of selectedJobStats) {
-                    if (!stat.median || stat.median <= 0) continue;
-                    const job = data.jobs[stat.jobName];
-                    if (!job) continue;
-                    const filtered = filterRunsByDate(job.recent, rangeMin, rangeMax);
-                    for (const r of filtered) {
-                        // Normalize: 100% = job's median, so 110% means 10% slower than median
-                        normalizedRuns.push({
-                            date: r.date,
-                            duration: (r.duration / stat.median) * 100  // percentage of median
-                        });
-                    }
-                }
-
-                // Compute aggregate trend on normalized values
-                const aggTrend = normalizedRuns.length > 0 ? computeTrend(normalizedRuns) : null;
-
-                const aggRow = document.createElement('tr');
-                aggRow.className = 'aggregate-row';
-                const aggTrendResult = formatTrend(aggTrend, null, true);
-                aggRow.innerHTML = `
-                    <td class="stats-select-col"></td>
-                    <td>All (${selectedJobStats.length} jobs)</td>
-                    <td>${aggTrendResult.html}</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td>${allN}</td>
-                `;
-                tbody.appendChild(aggRow);
-            }
 
             for (const stat of jobStats) {
                 const { jobName, color, median, mean, min, max, std, trend, n } = stat;
@@ -2628,19 +2314,10 @@
 
             const filter = jobFilterText.trim().toLowerCase();
 
-            return Object.keys(data.jobs).filter(name => {
-                const matchesSearch =
-                    filter === '' || convertEmojiText(name).toLowerCase().includes(filter);
-
-                if (!matchesSearch) return false;
-
-                if (selectedJuliaVersion === 'all') return true;
-
-                const lower = name.toLowerCase();
-                const versionMatch = lower.match(/\b1\.\d+(?:-nightly)?\b|\bnightly\b/);
-                const version = versionMatch ? versionMatch[0] : null;
-
-                return version === selectedJuliaVersion;
+            return jobNameList.filter(name => {
+                const info = jobInfo.get(name);
+                return (filter === '' || info.searchText.includes(filter)) &&
+                    (selectedJuliaVersion === 'all' || info.version === selectedJuliaVersion);
             });
         }
 
@@ -2678,8 +2355,12 @@
             // Assign colors
             const allJobs = Object.keys(data.jobs);
             const colors = generateColors(allJobs.length);
+            jobInfo = new Map();
             allJobs.forEach((name, i) => {
                 jobColors[name] = colors[i];
+                const searchText = convertEmojiText(name).toLowerCase();
+                const match = searchText.match(/\b1\.\d+(?:-nightly)?\b|\bnightly\b/);
+                jobInfo.set(name, { searchText, version: match?.[0] ?? null });
             });
         }
 
@@ -2703,7 +2384,33 @@
             try {
                 const response = await fetch("data/timing_summary.json");
                 if (!response.ok) throw new Error("HTTP " + response.status);
-                data = await response.json();
+                const payload = await response.json();
+                if (!payload.jobs || typeof payload.jobs !== 'object' || Array.isArray(payload.jobs)) {
+                    throw new Error('Unsupported timing data schema');
+                }
+
+                // The producer currently emits timezone-less ISO timestamps. Its
+                // benchmark clock is UTC, so make that assumption explicit in memory.
+                const normalizeTimestamp = value => {
+                    if (typeof value !== 'string') throw new Error('Invalid timestamp');
+                    const timestamp = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
+                    if (!Number.isFinite(Date.parse(timestamp))) throw new Error('Invalid timestamp');
+                    return timestamp;
+                };
+
+                payload.generated_at = normalizeTimestamp(payload.generated_at);
+                for (const [name, job] of Object.entries(payload.jobs)) {
+                    if (!job || !Array.isArray(job.recent)) {
+                        throw new Error(`Invalid timing series for ${name}`);
+                    }
+                    for (const run of job.recent) {
+                        if (!Number.isFinite(run.duration) || run.duration < 0) {
+                            throw new Error(`Invalid duration for ${name}`);
+                        }
+                        run.date = normalizeTimestamp(run.date);
+                    }
+                }
+                data = payload;
 
                 const updatedEl = document.getElementById("last-updated");
                 updatedEl.textContent = "Updated " + timeAgo(data.generated_at);
@@ -2716,29 +2423,22 @@
 
                 if (!hasURLSelection) {
                     const storedSelection = decodeSelection(loadFromLocalStorage());
-                    if (storedSelection) {
-                        for (const index of storedSelection.indices) {
-                            const name = jobNameList[index];
-                            if (name && isDefaultSelectedJob(name)) selectedJobs.add(name);
-                        }
-                    }
-                }
-
-                if (selectedJobs.size === 0) {
-                    for (const name of jobNameList) {
-                        if (isDefaultSelectedJob(name)) selectedJobs.add(name);
+                    for (const name of storedSelection?.names ?? []) {
+                        if (data.jobs[name]) selectedJobs.add(name);
                     }
                 }
 
                 document.getElementById("chart-loading").style.display = "none";
                 refreshAllUI();
             } catch (error) {
-                console.error("Failed to load data:", error);
+                console.error("Failed to load timing data:", error);
+                const invalidData = error instanceof SyntaxError || error.message.includes("schema") || error.message.includes("series") || error.message.includes("timestamp") || error.message.includes("duration");
+                const errorText = invalidData ? "Timing data is invalid" : "Failed to load timing data";
                 const retryButton = "<button class=\"btn btn-retry\" onclick=\"location.reload()\">Retry</button>";
                 document.getElementById("chart-loading").innerHTML =
-                    "<span class=\"error\">Failed to load data</span>" + retryButton;
+                    `<span class="error">${errorText}</span>` + retryButton;
                 document.getElementById("stats-tbody").innerHTML =
-                    "<tr><td colspan=\"8\" class=\"error\">Failed to load data. " + retryButton + "</td></tr>";
+                    `<tr><td colspan="8" class="error">${errorText}. ${retryButton}</td></tr>`;
             }
         }
 
@@ -2760,6 +2460,7 @@
 
         // Re-render chart when color scheme changes
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (chart) { chart.destroy(); chart = null; }
             if (selectedJobs.size > 0) updateChart();
         });
     </script>
