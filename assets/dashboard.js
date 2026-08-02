@@ -11,6 +11,7 @@ const LEGACY_STORAGE_KEY = 'julia-ci-timing-config';
 const AGO_UPDATE_INTERVAL = 60 * 1000;
 const STALE_DATA_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
 const TREND_MIN_POINTS = 3;
+const TABLE_COLUMN_COUNT = document.querySelectorAll('#stats-thead th').length;
 
 // All mutable application state lives here so dependencies remain explicit.
 const app = {
@@ -1352,7 +1353,7 @@ function updateStatsTable() {
 
     const visibleJobNames = getVisibleJobNames();
     if (visibleJobNames.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="loading">No matching jobs</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMN_COUNT}" class="loading">No matching jobs</td></tr>`;
         updateSortIndicators();
         syncStatsSelectAllCheckbox();
         return;
@@ -1588,7 +1589,87 @@ function timeAgo(dateString) {
     return `${weeks}w ago`;
 }
 
+function normalizeTimestamp(value) {
+    if (typeof value !== 'string') throw new Error('Invalid timestamp');
+    const timestamp = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
+    if (!Number.isFinite(Date.parse(timestamp))) throw new Error('Invalid timestamp');
+    return timestamp;
+}
+
+function prepareTimingData(payload, { requireGeneratedAt = true } = {}) {
+    if (!payload.jobs || typeof payload.jobs !== 'object' || Array.isArray(payload.jobs)) {
+        throw new Error('Unsupported timing data schema');
+    }
+    if (requireGeneratedAt) payload.generated_at = normalizeTimestamp(payload.generated_at);
+    for (const [name, job] of Object.entries(payload.jobs)) {
+        if (!job || !Array.isArray(job.recent)) throw new Error(`Invalid timing series for ${name}`);
+        for (const run of job.recent) {
+            if (!Number.isFinite(run.duration) || run.duration < 0) {
+                throw new Error(`Invalid duration for ${name}`);
+            }
+            run.date = normalizeTimestamp(run.date);
+        }
+    }
+    return payload;
+}
+
+function tryParsePartialTimingData(jsonText) {
+    const completeJob = /"std_seconds":\s*[\d.eE+-]+\s*\}\s*\}/g;
+    let lastMatch = null;
+    for (const match of jsonText.matchAll(completeJob)) lastMatch = match;
+    if (!lastMatch) return null;
+
+    const end = lastMatch.index + lastMatch[0].length;
+    try {
+        return prepareTimingData(JSON.parse(`${jsonText.slice(0, end)}}}`), {
+            requireGeneratedAt: false
+        });
+    } catch {
+        return null;
+    }
+}
+
+function renderPartialTimingData(partialData, bytesLoaded) {
+    app.timingData = partialData;
+    app.stats.cache.clear();
+    populateJobSelector();
+    updateJuliaVersionFilterUI();
+    updateStatsTable();
+    document.getElementById('chart-loading').innerHTML =
+        `<span class="loading">Loading… ${app.jobNames.length} jobs (${(bytesLoaded / 1048576).toFixed(1)} MB)</span>`;
+}
+
+async function readTimingResponse(response) {
+    if (!response.body?.getReader) return prepareTimingData(await response.json());
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let jsonText = '';
+    let renderedJobs = 0;
+    let lastRender = 0;
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        jsonText += decoder.decode(value, { stream: true });
+
+        const now = performance.now();
+        if (now - lastRender < 200) continue;
+        const partial = tryParsePartialTimingData(jsonText);
+        const jobCount = partial ? Object.keys(partial.jobs).length : 0;
+        if (jobCount >= renderedJobs + 25 || (renderedJobs === 0 && jobCount >= 5)) {
+            renderPartialTimingData(partial, jsonText.length);
+            renderedJobs = jobCount;
+            lastRender = now;
+        }
+    }
+
+    jsonText += decoder.decode();
+    return prepareTimingData(JSON.parse(jsonText));
+}
+
 function initializeDashboard() {
+    document.getElementById('initial-loading-cell').colSpan = TABLE_COLUMN_COUNT;
     document.getElementById('time-range').addEventListener('change', event => setTimeRange(event.target.value));
     document.getElementById('line-type').addEventListener('change', event => setLineType(event.target.value));
     document.getElementById('julia-version').addEventListener('change', event => setJuliaVersion(event.target.value));
@@ -1617,33 +1698,9 @@ async function loadData() {
     try {
         const response = await fetch("data/timing_summary.json");
         if (!response.ok) throw new Error("HTTP " + response.status);
-        const payload = await response.json();
-        if (!payload.jobs || typeof payload.jobs !== 'object' || Array.isArray(payload.jobs)) {
-            throw new Error('Unsupported timing data schema');
-        }
-
-        // The producer currently emits timezone-less ISO timestamps. Its
-        // benchmark clock is UTC, so make that assumption explicit in memory.
-        const normalizeTimestamp = value => {
-            if (typeof value !== 'string') throw new Error('Invalid timestamp');
-            const timestamp = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
-            if (!Number.isFinite(Date.parse(timestamp))) throw new Error('Invalid timestamp');
-            return timestamp;
-        };
-
-        payload.generated_at = normalizeTimestamp(payload.generated_at);
-        for (const [name, job] of Object.entries(payload.jobs)) {
-            if (!job || !Array.isArray(job.recent)) {
-                throw new Error(`Invalid timing series for ${name}`);
-            }
-            for (const run of job.recent) {
-                if (!Number.isFinite(run.duration) || run.duration < 0) {
-                    throw new Error(`Invalid duration for ${name}`);
-                }
-                run.date = normalizeTimestamp(run.date);
-            }
-        }
+        const payload = await readTimingResponse(response);
         app.timingData = payload;
+        app.stats.cache.clear();
 
         const updatedEl = document.getElementById("last-updated");
         updatedEl.textContent = "Updated " + timeAgo(app.timingData.generated_at);
@@ -1671,7 +1728,7 @@ async function loadData() {
         document.getElementById("chart-loading").innerHTML =
             `<span class="error">${errorText}</span>` + retryButton;
         document.getElementById("stats-tbody").innerHTML =
-            `<tr><td colspan="8" class="error">${errorText}. ${retryButton}</td></tr>`;
+            `<tr><td colspan="${TABLE_COLUMN_COUNT}" class="error">${errorText}. ${retryButton}</td></tr>`;
         document.querySelectorAll('.btn-retry').forEach(button =>
             button.addEventListener('click', () => location.reload()));
     }

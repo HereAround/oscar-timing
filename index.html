@@ -13,8 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- HTML decodes &amp; to the query-string separator before requesting the font. -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/dashboard.css">
 </head>
 <body>
@@ -131,7 +130,7 @@
                             </tr>
                         </thead>
                         <tbody id="stats-tbody">
-                            <tr><td colspan="8" class="loading">Loading...</td></tr>
+                            <tr><td id="initial-loading-cell" class="loading">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
